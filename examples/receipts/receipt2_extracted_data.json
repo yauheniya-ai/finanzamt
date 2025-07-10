@@ -1,0 +1,43 @@
+{
+  "company": "Hausmeister Service",
+  "date": "2022-03-07T00:00:00",
+  "amount_euro": 168.0,
+  "vat_percentage": 19.0,
+  "vat_euro": 71.4,
+  "confidence_score": 0.3,
+  "raw_text": "Hausmeister Service\nSererzestaßie Tso idob Stadt ar lar\nRechnungsnummer. 2022 19\nRechnungsdatum: 07.03.2022\ni H N Tage\nWohnhaus am Park Zahlungsbedingungen: 30 Tage\nAm Park 1 Fälligkeitsdatum: 09.03.2022\n12345 Park\nRechnung\nBeschreibung Datum Menge Einheit Einzelpreis Ust.% Betrag\nWartungsarbeiten 07.02.2022 4,00 h 15,00 € 19,00 % 71,40 €\nWegpflege 07.02.2022 4.00 h 27,00€ 19.00 % 128,52 €\nNettobetrag 168,00 €\nUst. 19,00 % 31.92 €\nGesamtsumme 19,92€\nAdresse Seryicostraße 1» 23456 » Stadtam Tor Bank DIUTSCHEF KREDITBANK BERLIN = SWIFT/BIC BYLADTMI1001",
+  "items": [
+    {
+      "description": "Wartungsarbeiten 07.02.2022 4,00 h 15,00 € 19,00 %",
+      "quantity": null,
+      "unit_price": null,
+      "total_price": 71.4,
+      "category": "services",
+      "vat_rate": null
+    },
+    {
+      "description": "Wegpflege 07.02.2022 4.00 h 27,00€ 19.00 %",
+      "quantity": null,
+      "unit_price": null,
+      "total_price": 128.52,
+      "category": "other",
+      "vat_rate": null
+    },
+    {
+      "description": "Nettobetrag",
+      "quantity": null,
+      "unit_price": null,
+      "total_price": 168.0,
+      "category": "other",
+      "vat_rate": null
+    },
+    {
+      "description": "Gesamtsumme",
+      "quantity": null,
+      "unit_price": null,
+      "total_price": 19.92,
+      "category": "taxes_fees",
+      "vat_rate": null
+    }
+  ]
+}
