@@ -1,5 +1,5 @@
 from pathlib import Path
-from finance_agent import FinanceAgent
+from finanzamt import FinanceAgent
 
 def process_receipt(file_stem: str, input_dir: Path = Path("examples/receipts")):
     """Process a single receipt and save results."""

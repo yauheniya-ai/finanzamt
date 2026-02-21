@@ -1,8 +1,8 @@
 from pathlib import Path
-from finance_agent import FinanceAgent
+from src.finanzamt import FinanceAgent
 import logging
 from typing import Dict
-from finance_agent.models import ExtractionResult
+from src.finanzamt.models import ExtractionResult
 
 def configure_logging():
     """Set up basic logging configuration"""

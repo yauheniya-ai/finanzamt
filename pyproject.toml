@@ -3,35 +3,39 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-finance-agent"
-version = "0.1.2"
-description = "An agentic AI library for processing financial receipts"
+name = "finanzamt"
+version = "0.1.3"
+description = "A Python library for processing receipts, extracting key information, and assisting in the preparation of all essential tax return statements."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Yauheniya Varabyova", email = "yauheniya.ail@gmail.com"}
+    {name = "Yauheniya Varabyova"}
 ]
 maintainers = [
-    {name = "Yauheniya Varabyova", email = "yauheniya.ail@gmail.com"}
+    {name = "Yauheniya Varabyova"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Legal Industry",
+    "Intended Audience :: End Users/Desktop",
     "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Natural Language :: German",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Office/Business :: Financial",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Text Processing :: Indexing",
     "Topic :: Multimedia :: Graphics :: Capture :: Digital Camera",
 ]
-keywords = ["finance", "receipts", "ocr", "ai", "llm", "agent", "extraction"]
-requires-python = ">=3.8"
+keywords = ["finanzamt", "finance", "receipts", "tax", "statement", "ocr", "extraction"]
+requires-python = ">=3.10"
 dependencies = [
     "requests>=2.28.0",
     "PyMuPDF>=1.22.0",
@@ -44,6 +48,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "twine",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "black>=22.0",
@@ -64,21 +69,17 @@ test = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yauheniya-ai/ai-finance-agent"
-"Documentation" = "https://ai-finance-agent.readthedocs.io/"
-"Repository" = "https://github.com/yauheniya-ai/ai-finance-agent"
-"Bug Tracker" = "https://github.com/yauheniya-ai/ai-finance-agent/issues"
-"Changelog" = "https://github.com/yauheniya-ai/ai-finance-agent/blob/main/CHANGELOG.md"
+"Repository" = "https://github.com/yauheniya-ai/finanzamt"
+"Changelog" = "https://github.com/yauheniya-ai/finanzamt/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["finance_agent*"]
+where = ["src"]
 
-[tool.setuptools.package-data]
-finance_agent = ["py.typed"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
 
-# Black configuration
-[tool.black]
-line-length = 88
-target-version = ['py38']
-include = '\.pyi?'
+[tool.coverage.run]
+source = ["finanzamt"]
+omit = ["*/tests/*", "*/__pycache__/*", "*/site-packages/*"]
+

@@ -1,10 +1,6 @@
 """
-Finance Agent - An agentic AI library for receipt processing and financial data extraction.
+Finanzamt - A Python library for processing receipts, extracting key information, and assisting in the preparation of all essential tax return statements.
 """
-
-__version__ = "0.1.0"
-__author__ = "Your Name"
-__email__ = "your.email@example.com"
 
 from .agent import FinanceAgent
 from .config import Config

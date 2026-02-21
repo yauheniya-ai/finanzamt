@@ -1,6 +1,6 @@
 {
   "company": "Hotel Gruber",
-  "date": "2021-03-04T00:00:00",
+  "date": "2021-04-03T00:00:00",
   "amount_euro": 1134.33,
   "vat_percentage": 5.0,
   "vat_euro": 55.67,
@@ -8,19 +8,19 @@
   "raw_text": "Hotel Gruber\nBerggasse 10\n1090 Wien\nTel: +43 125555 2256\ne-mail: info@gruberhotel.at\nwww.gruberhotel.at\nFrau\nMarie Steiner\nBerggasse 6\n1090 Wien\nRechnung Nr.: 8455 03.04.2021\nReservierung: 710316\nMenge & Produkt Einzelpreis  MwSt.% Netto MwSt. Brutto\n1 Doppelzimmer €167.00 5.0% €1113.33 €55.67 €1169.00\nAnkunftsdatum: 07.08.2021 - Abreisedatum: 14.08.2021\nÜbernachtungen: 7 - Reservierungsnummer: 710316\n2 Ortstaxe €1.50 0.0% €21.00 €0.00 €21.00\nGesamtbetrag €1134.33 €55.67 €1190,00\nOffener Betrag €1190.00\nOpe ses ga\nPht Aa 3\nee >\nEFT €\nEEE A\nInpsoa,\nVielen Dank für Ihren Besuch in unserem Haus. Wir freuen uns, Sie bald wieder als Gast begrüssen zu dürfen.\nMit freundlichen Grissen\nPeter Gruber\nMwSt. 0% €0.00 Nette: €21.00 Brutto: €21.00\nMwSt.5% €55.67 Netto: €1113.33 Brutto: €1169.00\nHotel Gruber, Berggasse 10, 1090 Wien\nwww.grüberhorel.at\nBankverbindung: Erste Bank, BIC: GIBAATWWXXX, IBAN: AT981234567891234560",
   "items": [
     {
-      "description": "Doppelzimmer",
+      "description": "Doppelzimmer (Double Room)",
       "quantity": null,
-      "unit_price": 167.0,
+      "unit_price": null,
       "total_price": 1169.0,
       "category": "other",
       "vat_rate": 5.0
     },
     {
-      "description": "Ortstaxe",
+      "description": "Ortstaxe (Local Tax)",
       "quantity": null,
       "unit_price": 1.5,
       "total_price": 21.0,
-      "category": "other",
+      "category": "taxes_fees",
       "vat_rate": null
     }
   ]

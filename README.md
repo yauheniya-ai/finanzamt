@@ -14,12 +14,12 @@ An intelligent agentic AI library for processing financial receipts and extracti
 ## Installation
 
 ```bash
-pip install ai-finance-agent
+pip install finanzamt
 ```
 
 ### System Requirements
 
-- Python 3.8+
+- Python 3.10+
 - Tesseract OCR installed on your system
 - Ollama running locally (optional but recommended)
 
@@ -52,7 +52,7 @@ ollama pull llama3.2-vision
 
 
 ```python
-from finance_agent import FinanceAgent
+from finanzamt import FinanceAgent
 
 # Initialize the agent
 agent = FinanceAgent()
@@ -76,7 +76,7 @@ else:
 ## Configuration
 
 ```python
-from finance_agent import FinanceAgent, Config
+from finanzamt import FinanceAgent, Config
 
 # Custom configuration
 config = Config()
