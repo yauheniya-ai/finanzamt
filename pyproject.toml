@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finanzamt"
-version = "0.1.4"
+version = "0.1.5"
 description = "A Python library for processing receipts, extracting key information, and assisting in the preparation of all essential tax return statements."
 readme = "README.md"
 license = {text = "MIT"}
@@ -53,6 +53,7 @@ dev = [
     "twine",
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "pytest-mock",
     "black>=22.0",
     "flake8>=5.0",
     "mypy>=0.991",
@@ -67,6 +68,9 @@ docs = [
 [project.urls]
 "Repository" = "https://github.com/yauheniya-ai/finanzamt"
 "Changelog" = "https://github.com/yauheniya-ai/finanzamt/blob/main/CHANGELOG.md"
+
+[project.scripts]
+finanzamt = "finanzamt.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
