@@ -1,0 +1,34 @@
+{
+  "success": true,
+  "data": {
+    "vendor": "Hotel Gruber",
+    "vendor_address": "Berggasse 10, 1090 Wien",
+    "receipt_number": "8455",
+    "receipt_date": "2021-03-04",
+    "total_amount": 1190.0,
+    "vat_percentage": 5.0,
+    "vat_amount": 55.67,
+    "net_amount": 1134.33,
+    "category": "other",
+    "items": [
+      {
+        "description": "Doppelzimmer",
+        "quantity": 1.0,
+        "unit_price": 167.0,
+        "total_price": 1169.0,
+        "category": "other",
+        "vat_rate": 5.0
+      },
+      {
+        "description": "Ortstaxe",
+        "quantity": 1.0,
+        "unit_price": 1.5,
+        "total_price": 21.0,
+        "category": "other",
+        "vat_rate": 0.0
+      }
+    ]
+  },
+  "error_message": null,
+  "processing_time": 7.931
+}

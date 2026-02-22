@@ -1,242 +1,269 @@
+"""
+finanzamt.agent
+~~~~~~~~~~~~~~~
+The main entry point for receipt processing.
+
+``FinanceAgent`` orchestrates the full pipeline:
+  1. OCR text extraction (``OCRProcessor``)
+  2. LLM-based structured extraction (Ollama)
+  3. Rule-based fallback (``DataExtractor``)
+  4. Model construction + validation (``ReceiptData``)
+"""
+
+from __future__ import annotations
+
 import json
 import logging
 import time
-from typing import Union, Optional, Dict, Any
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
-import requests
-from .models import ReceiptData, ExtractionResult, ReceiptItem, ItemCategory
-from .ocr_processor import OCRProcessor
-from .utils import DataExtractor, clean_json_response, parse_decimal, parse_date
-from .config import Config
-from .exceptions import LLMExtractionError, OCRProcessingError, InvalidReceiptError
+from typing import Optional, Union
 
+import requests
+
+from .config import Config
+from .exceptions import InvalidReceiptError, LLMExtractionError, OCRProcessingError
+from .models import ExtractionResult, ReceiptCategory, ReceiptData, ReceiptItem
+from .ocr_processor import OCRProcessor
+from .prompts import build_extraction_prompt
+from .utils import DataExtractor, clean_json_response, parse_date, parse_decimal
+
+# Libraries must never call basicConfig — attach a NullHandler so that log
+# records are silently discarded unless the *application* configures logging.
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 
 class FinanceAgent:
     """
-    Agentic AI system for processing financial receipts.
-    
-    This agent combines OCR processing with LLM-based extraction
-    to extract structured data from German receipts.
+    Agentic AI system for processing German financial receipts.
+
+    Combines OCR text extraction with an Ollama LLM for structured data
+    extraction, falling back to heuristic rules when the LLM is unavailable
+    or returns malformed output.
+
+    Args:
+        config: Optional ``Config`` instance.  If omitted, a default ``Config``
+                is created (reads from ``.env`` and environment variables).
     """
-    
-    def __init__(self, config: Optional[Config] = None):
+
+    def __init__(self, config: Optional[Config] = None) -> None:
         self.config = config or Config()
         self.ocr_processor = OCRProcessor(self.config)
         self.data_extractor = DataExtractor()
-        self._setup_logging()
-    
-    def _setup_logging(self):
-        """Setup logging configuration."""
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-    
-    def process_receipt(self, pdf_path: Union[str, Path, bytes]) -> ExtractionResult:
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def process_receipt(
+        self,
+        pdf_path: Union[str, Path, bytes],
+    ) -> ExtractionResult:
         """
-        Process a receipt PDF and extract financial data.
-        
+        Process a receipt PDF and return structured financial data.
+
         Args:
-            pdf_path: Path to PDF file or PDF bytes
-            
+            pdf_path: Filesystem path, ``pathlib.Path``, or raw PDF bytes.
+
         Returns:
-            ExtractionResult containing extracted data
+            ``ExtractionResult`` — always succeeds structurally; check
+            ``result.success`` and ``result.error_message`` for failures.
         """
-        start_time = time.time()
-        
+        start = time.monotonic()
+
         try:
-            logger.info("Starting receipt processing...")
-            
-            # Step 1: Extract text using OCR
-            logger.info("Extracting text from PDF...")
+            # 1 — OCR -------------------------------------------------------
+            logger.info("Extracting text from receipt…")
             raw_text = self.ocr_processor.extract_text_from_pdf(pdf_path)
-            
+
             if not raw_text.strip():
                 return ExtractionResult(
                     success=False,
-                    error_message="No text could be extracted from the PDF",
-                    processing_time=time.time() - start_time
+                    error_message="No text could be extracted from the receipt.",
+                    processing_time=time.monotonic() - start,
                 )
-            
-            # Step 2: Use LLM for structured extraction
-            logger.info("Processing with LLM...")
-            llm_result = self._extract_with_llm(raw_text)
-            
-            # Step 3: Fallback to rule-based extraction if LLM fails
+
+            # 2 — LLM extraction --------------------------------------------
+            logger.info("Running LLM extraction…")
+            llm_result: Optional[dict] = None
+            try:
+                llm_result = self._extract_with_llm(raw_text)
+            except LLMExtractionError as exc:
+                logger.warning("LLM extraction failed (%s); falling back to rules.", exc)
+
+            # 3 — Rule-based fallback ---------------------------------------
             if not llm_result or not llm_result.get("items"):
-                logger.info("LLM extraction failed or incomplete, using fallback method...")
+                logger.info("Using rule-based fallback extraction.")
                 llm_result = self._extract_with_rules(raw_text)
-            
-            # Step 4: Create result with items
-            items = []
-            if llm_result.get("items"):
-                for item_data in llm_result["items"]:
-                    try:
-                        item = ReceiptItem(
-                            description=item_data.get("description", ""),
-                            quantity=parse_decimal(item_data.get("quantity")),
-                            unit_price=parse_decimal(item_data.get("unit_price")),
-                            total_price=parse_decimal(item_data.get("total_price")),
-                            category=ItemCategory.from_string(item_data.get("category", "other")),
-                            vat_rate=parse_decimal(item_data.get("vat_rate"))
-                        )
-                        items.append(item)
-                    except Exception as e:
-                        logger.warning(f"Failed to parse item: {e}")
-                        continue
-            
-            receipt_data = ReceiptData(
-                company=llm_result.get("company"),
-                date=parse_date(llm_result.get("date")) if llm_result.get("date") else None,
-                amount_euro=parse_decimal(llm_result.get("amount_euro")),
-                vat_percentage=parse_decimal(llm_result.get("vat_percentage")),
-                vat_euro=parse_decimal(llm_result.get("vat_euro")),
-                confidence_score=llm_result.get("confidence_score", 0.5),
-                raw_text=raw_text,
-                items=items
-            )
-            
-            # Validate the extracted data
+
+            # 4 — Build model -----------------------------------------------
+            receipt_data = self._build_receipt_data(llm_result, raw_text)
+
             if not receipt_data.validate():
-                raise InvalidReceiptError("Extracted receipt data failed validation")
-            
-            processing_time = time.time() - start_time
-            
+                raise InvalidReceiptError(
+                    "Extracted receipt data failed validation — "
+                    f"total={receipt_data.total_amount}, date={receipt_data.receipt_date}"
+                )
+
             return ExtractionResult(
                 success=True,
                 data=receipt_data,
-                processing_time=processing_time
+                processing_time=time.monotonic() - start,
             )
-            
-        except OCRProcessingError as e:
-            logger.error(f"OCR processing error: {e}")
+
+        except (OCRProcessingError, LLMExtractionError, InvalidReceiptError) as exc:
+            logger.error("%s: %s", type(exc).__name__, exc)
             return ExtractionResult(
                 success=False,
-                error_message=str(e),
-                processing_time=time.time() - start_time
+                error_message=str(exc),
+                processing_time=time.monotonic() - start,
             )
-        except LLMExtractionError as e:
-            logger.error(f"LLM extraction error: {e}")
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Unexpected error processing receipt.")
             return ExtractionResult(
                 success=False,
-                error_message=str(e),
-                processing_time=time.time() - start_time
+                error_message=f"Unexpected error: {exc}",
+                processing_time=time.monotonic() - start,
             )
-        except InvalidReceiptError as e:
-            logger.error(f"Invalid receipt data: {e}")
-            return ExtractionResult(
-                success=False,
-                error_message=str(e),
-                processing_time=time.time() - start_time
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error processing receipt: {e}")
-            return ExtractionResult(
-                success=False,
-                error_message=f"Unexpected error: {str(e)}",
-                processing_time=time.time() - start_time
-            )
-    
-    def _extract_with_llm(self, text: str) -> Optional[Dict[str, Any]]:
+
+    def batch_process(
+        self,
+        pdf_paths: list[Union[str, Path]],
+    ) -> dict[str, ExtractionResult]:
         """
-        Extract data using LLM (Ollama).
-        
+        Process multiple receipts sequentially.
+
         Args:
-            text: OCR extracted text
-            
+            pdf_paths: Iterable of PDF file paths.
+
         Returns:
-            Extracted data dictionary
-            
-        Raises:
-            LLMExtractionError: If extraction fails
+            ``{str(path): ExtractionResult}`` for every input path.
         """
-        model_config = self.config.get_model_config()
-        
-        for attempt in range(model_config["max_retries"]):
+        results: dict[str, ExtractionResult] = {}
+        for pdf_path in pdf_paths:
+            logger.info("Processing %s …", pdf_path)
+            results[str(pdf_path)] = self.process_receipt(pdf_path)
+        return results
+
+    # ------------------------------------------------------------------
+    # LLM extraction
+    # ------------------------------------------------------------------
+
+    def _extract_with_llm(self, text: str) -> dict:
+        """
+        Call Ollama and parse the JSON response.
+
+        Retries up to ``config.max_retries`` times with a short backoff.
+
+        Raises:
+            LLMExtractionError: When all attempts are exhausted.
+        """
+        model_cfg = self.config.get_model_config()   # returns ModelConfig dataclass
+        prompt = build_extraction_prompt(text)
+
+        for attempt in range(1, model_cfg.max_retries + 1):
             try:
                 response = requests.post(
-                    f"{model_config['base_url']}/api/generate",
+                    f"{model_cfg.base_url}/api/generate",
                     json={
-                        "model": model_config["model"],
-                        "prompt": self.config.EXTRACTION_PROMPT_TEMPLATE.format(text=text),
+                        "model":  model_cfg.model,
+                        "prompt": prompt,
                         "stream": False,
                         "options": {
-                            "temperature": model_config["temperature"],
-                            "top_p": model_config["top_p"],
-                            "num_ctx": model_config["num_ctx"]
-                        }
+                            "temperature": model_cfg.temperature,
+                            "top_p":       model_cfg.top_p,
+                            "num_ctx":     model_cfg.num_ctx,
+                        },
                     },
-                    timeout=model_config["timeout"]
+                    timeout=model_cfg.timeout,
                 )
-                
-                if response.status_code == 200:
-                    try:
-                        result = response.json()
-                        response_text = result.get("response", "")
-                        cleaned_response = clean_json_response(response_text)
-                        return json.loads(cleaned_response)
-                    except json.JSONDecodeError as e:
-                        logger.warning(f"Attempt {attempt + 1} failed to decode JSON: {e}")
-                        continue
-                else:
-                    logger.warning(f"Attempt {attempt + 1} failed with status {response.status_code}")
-                
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
-                time.sleep(1)  # Backoff
-        
-        raise LLMExtractionError("Failed to extract data with LLM after multiple attempts")
-    
-    def _extract_with_rules(self, text: str) -> Dict[str, Any]:
+
+                if response.status_code != 200:
+                    logger.warning(
+                        "Attempt %d/%d — Ollama returned HTTP %d.",
+                        attempt, model_cfg.max_retries, response.status_code,
+                    )
+                    continue
+
+                raw_response = response.json().get("response", "")
+                cleaned = clean_json_response(raw_response)
+                return json.loads(cleaned)
+
+            except json.JSONDecodeError as exc:
+                logger.warning("Attempt %d/%d — invalid JSON: %s", attempt, model_cfg.max_retries, exc)
+            except requests.exceptions.RequestException as exc:
+                logger.warning("Attempt %d/%d — request failed: %s", attempt, model_cfg.max_retries, exc)
+                time.sleep(1)  # brief backoff before retry
+
+        raise LLMExtractionError(
+            f"Ollama extraction failed after {model_cfg.max_retries} attempts."
+        )
+
+    # ------------------------------------------------------------------
+    # Rule-based fallback
+    # ------------------------------------------------------------------
+
+    def _extract_with_rules(self, text: str) -> dict:
         """
-        Fallback rule-based extraction.
-        
-        Args:
-            text: OCR extracted text
-            
-        Returns:
-            Extracted data dictionary
+        Heuristic extraction for when the LLM is unavailable.
+
+        Returns a dict with the same keys as the LLM prompt JSON so that
+        ``_build_receipt_data`` can handle both paths identically.
         """
-        # Extract company name
-        company = self.data_extractor.extract_company_name(text)
-        
-        # Extract date
         date = self.data_extractor.extract_date(text)
-        
-        # Extract amounts
         amounts = self.data_extractor.extract_amounts(text)
-        
-        # Extract VAT info
         vat_info = self.data_extractor.extract_vat_info(text)
-        
-        # Extract items
-        items = self.data_extractor.extract_items(text)
-        
+
         return {
-            "company": company,
-            "date": date.strftime("%Y-%m-%d") if date else None,
-            "amount_euro": float(amounts["total"]) if amounts["total"] else None,
-            "vat_percentage": float(vat_info["vat_percentage"]) if vat_info["vat_percentage"] else None,
-            "vat_euro": float(vat_info["vat_amount"]) if vat_info["vat_amount"] else None,
-            "confidence_score": 0.3,  # Lower confidence for rule-based extraction
-            "items": items
+            "vendor":          self.data_extractor.extract_company_name(text),
+            "vendor_address":  None,
+            "receipt_number":  None,
+            "receipt_date":    date.strftime("%Y-%m-%d") if date else None,
+            "total_amount":    float(amounts["total"]) if amounts.get("total") else None,
+            "vat_percentage":  float(vat_info["vat_percentage"]) if vat_info.get("vat_percentage") else None,
+            "vat_amount":      float(vat_info["vat_amount"]) if vat_info.get("vat_amount") else None,
+            "category":        "other",
+            "items":           self.data_extractor.extract_items(text),
         }
-    
-    def batch_process(self, pdf_paths: list) -> Dict[str, ExtractionResult]:
+
+    # ------------------------------------------------------------------
+    # Model construction
+    # ------------------------------------------------------------------
+
+    def _build_receipt_data(self, data: dict, raw_text: str) -> ReceiptData:
         """
-        Process multiple receipts in batch.
-        
-        Args:
-            pdf_paths: List of PDF paths
-            
-        Returns:
-            Dictionary mapping paths to results
+        Map a raw extraction dict (from LLM or rules) to a ``ReceiptData``
+        instance.  Field names match those defined in the extraction prompt.
         """
-        results = {}
-        
-        for pdf_path in pdf_paths:
-            logger.info(f"Processing {pdf_path}...")
-            results[str(pdf_path)] = self.process_receipt(pdf_path)
-        
-        return results
+        items: list[ReceiptItem] = []
+        for item_data in data.get("items") or []:
+            try:
+                items.append(
+                    ReceiptItem(
+                        description=item_data.get("description", ""),
+                        quantity=   parse_decimal(item_data.get("quantity")),
+                        unit_price= parse_decimal(item_data.get("unit_price")),
+                        total_price=parse_decimal(item_data.get("total_price")),
+                        category=   ReceiptCategory(item_data.get("category", "other")),
+                        vat_rate=   parse_decimal(item_data.get("vat_rate")),
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Skipping malformed line item: %s", exc)
+
+        raw_date = data.get("receipt_date")
+        parsed_date = parse_date(raw_date) if raw_date else None
+
+        return ReceiptData(
+            vendor=          data.get("vendor"),
+            vendor_address=  data.get("vendor_address"),
+            receipt_number=  data.get("receipt_number"),
+            receipt_date=    parsed_date,
+            total_amount=    parse_decimal(data.get("total_amount")),
+            vat_percentage=  parse_decimal(data.get("vat_percentage")),
+            vat_amount=      parse_decimal(data.get("vat_amount")),
+            category=        ReceiptCategory(data.get("category", "other")),
+            raw_text=        raw_text,
+            items=           items,
+        )

@@ -1,251 +1,380 @@
-import re
+"""
+finanzamt.utils
+~~~~~~~~~~~~~~~
+Heuristic rule-based extraction utilities used as a fallback when the LLM
+is unavailable or returns incomplete data.
+
+These functions are intentionally simple and conservative — they prefer
+returning ``None`` over returning plausibly wrong values.
+"""
+
+from __future__ import annotations
+
+import json
 import logging
+import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Optional, Dict, Any, List
-import json
+from typing import Any, Dict, List, Optional
+
+# Category keywords aligned with RECEIPT_CATEGORIES in prompts.py.
+# The LLM and the rule-based fallback must agree on category names.
+from .prompts import RECEIPT_CATEGORIES
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+# Keyword → receipt category mapping (German terms only — English handled by LLM)
+_CATEGORY_KEYWORDS: Dict[str, List[str]] = {
+    "material":          ["papier", "rohstoff", "verbrauch", "büromaterial", "druckerpapier"],
+    "equipment":         ["gerät", "drucker", "monitor", "tastatur", "maus", "server", "hardware", "maschine"],
+    "software":          ["software", "lizenz", "abo", "subscription", "app", "cloud", "saas"],
+    "internet":          ["internet", "dsl", "glasfaser", "breitband", "hosting", "domain"],
+    "telecommunication": ["telefon", "handy", "mobilfunk", "sim", "telekom", "vodafone", "o2", "mobilität"],
+    "travel":            ["hotel", "flug", "bahn", "taxi", "uber", "mietwagen", "reise", "übernachtung"],
+    "education":         ["kurs", "seminar", "buch", "schulung", "weiterbildung", "studium", "zertifikat"],
+    "utilities":         ["strom", "gas", "wasser", "heizung", "nebenkosten", "entsorgung"],
+    "insurance":         ["versicherung", "haftpflicht", "police", "prämie"],
+    "taxes":             ["steuer", "finanzamt", "steuerberater", "gebühr", "abgabe"],
+}
+
+# Keywords that anchor a line as the grand total (checked before max() fallback)
+_TOTAL_KEYWORDS = ["gesamt", "gesamtbetrag", "total", "summe", "endbetrag", "brutto", "rechnungsbetrag"]
+
+# German month names → month number
+_MONTH_MAP: Dict[str, int] = {
+    "januar": 1,   "january": 1,
+    "februar": 2,  "february": 2,
+    "märz": 3,     "marz": 3,     "march": 3,
+    "april": 4,
+    "mai": 5,      "may": 5,
+    "juni": 6,     "june": 6,
+    "juli": 7,     "july": 7,
+    "august": 8,
+    "september": 9,
+    "oktober": 10, "october": 10,
+    "november": 11,
+    "dezember": 12, "december": 12,
+}
+
+# Date regexes in (pattern, order) pairs.
+# order: "dmy" | "ymd" so the unpacking is unambiguous.
+_DATE_PATTERNS: List[tuple[str, str]] = [
+    (r'\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b',        "dmy"),  # DD.MM.YYYY
+    (r'\b(\d{1,2})\.(\d{1,2})\.(\d{2})\b',         "dmy"),  # DD.MM.YY
+    (r'\b(\d{4})-(\d{2})-(\d{2})\b',               "ymd"),  # YYYY-MM-DD  ← fixed order
+    (r'\b(\d{1,2})/(\d{1,2})/(\d{4})\b',           "dmy"),  # DD/MM/YYYY
+    (r'\b(\d{1,2})\s+([A-Za-zÄÖÜäöü]+)\s+(\d{4})\b', "dmy"),  # 12 Januar 2023
+]
+
+# Amount regexes — German locale (period = thousands sep, comma = decimal)
+_AMOUNT_PATTERNS = [
+    r'(\d{1,3}(?:\.\d{3})*,\d{2})\s*€',
+    r'€\s*(\d{1,3}(?:\.\d{3})*,\d{2})',
+    r'EUR\s*(\d{1,3}(?:\.\d{3})*,\d{2})',
+    r'(\d{1,3}(?:\.\d{3})*,\d{2})\s*EUR',
+]
+
+# VAT line regexes
+_VAT_PATTERNS = [
+    r'(\d{1,2}(?:,\d{1,2})?)\s*%.*?(\d{1,3}(?:\.\d{3})*,\d{2})\s*€',
+    r'MwSt\.?\s*(\d{1,2}(?:,\d{1,2})?)\s*%.*?(\d{1,3}(?:\.\d{3})*,\d{2})',
+    r'VAT\s*(\d{1,2}(?:,\d{1,2})?)\s*%.*?(\d{1,3}(?:\.\d{3})*,\d{2})',
+]
+
+# Item line regexes
+_ITEM_PATTERNS = [
+    r'^(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?\s*$',
+    r'^(\d+(?:,\d+)?)\s*[xX]\s*(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?\s*$',
+    r'^(.+?)\s*@\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*=\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?\s*$',
+]
+
+# Lines that look like receipt boilerplate rather than company names
+_SKIP_HEADER_WORDS = frozenset([
+    "receipt", "rechnung", "kassenbon", "beleg", "quittung",
+    "datum", "uhrzeit", "kasse", "bon",
+])
+
+
+# ---------------------------------------------------------------------------
+# Helper: German amount string → Decimal
+# ---------------------------------------------------------------------------
+
+def _parse_german_amount(s: str) -> Optional[Decimal]:
+    """Convert a German-format amount string (e.g. '1.234,56') to Decimal."""
+    try:
+        return Decimal(s.replace(".", "").replace(",", "."))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+# ---------------------------------------------------------------------------
+# DataExtractor
+# ---------------------------------------------------------------------------
 
 class DataExtractor:
-    """Utility class for extracting specific data from text."""
-    
-    # German date patterns
-    DATE_PATTERNS = [
-        r'\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b',  # DD.MM.YYYY
-        r'\b(\d{1,2})\.(\d{1,2})\.(\d{2})\b',  # DD.MM.YY
-        r'\b(\d{4})-(\d{1,2})-(\d{1,2})\b',    # YYYY-MM-DD
-        r'\b(\d{1,2})/(\d{1,2})/(\d{4})\b',    # DD/MM/YYYY
-        r'\b(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\b'  # 12 Januar 2023
-    ]
-    
-    # Amount patterns (German format)
-    AMOUNT_PATTERNS = [
-        r'(\d{1,3}(?:\.\d{3})*,\d{2})\s*€',  # German format: 1.234,56 €
-        r'€\s*(\d{1,3}(?:\.\d{3})*,\d{2})',  # € 1.234,56
-        r'EUR\s*(\d{1,3}(?:\.\d{3})*,\d{2})',  # EUR 1.234,56
-        r'(\d{1,3}(?:\.\d{3})*,\d{2})\s*EUR',  # 1.234,56 EUR
-    ]
-    
-    # VAT patterns
-    VAT_PATTERNS = [
-        r'(\d{1,2}(?:,\d{1,2})?)\s*%.*?(\d{1,3}(?:\.\d{3})*,\d{2})\s*€',  # 19% ... 12,34 €
-        r'MwSt\.?\s*(\d{1,2}(?:,\d{1,2})?)\s*%.*?(\d{1,3}(?:\.\d{3})*,\d{2})',
-        r'VAT\s*(\d{1,2}(?:,\d{1,2})?)\s*%.*?(\d{1,3}(?:\.\d{3})*,\d{2})',
-    ]
-    
-    # Item line patterns for German receipts
-    ITEM_PATTERNS = [
-        # Pattern: Description Price
-        r'^(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?\s*$',
-        # Pattern: Quantity x Description Price
-        r'^(\d+(?:,\d+)?)\s*x\s*(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?\s*$',
-        # Pattern: Description @ Unit Price = Total Price
-        r'^(.+?)\s*@\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*=\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?\s*$'
-    ]
-    
-    # Category keywords for German receipts
-    CATEGORY_KEYWORDS = {
-        'food_groceries': ['brot', 'milch', 'käse', 'fleisch', 'gemüse', 'obst', 'nudeln', 'reis', 'mehl', 'zucker', 'joghurt', 'butter', 'eier', 'wurst', 'fisch'],
-        'food_restaurant': ['pizza', 'burger', 'pasta', 'salat', 'suppe', 'hauptgang', 'vorspeise', 'nachspeise', 'menü', 'gericht'],
-        'beverages': ['wasser', 'saft', 'cola', 'bier', 'wein', 'kaffee', 'tee', 'limonade', 'mineralwasser', 'getränk'],
-        'transportation': ['ticket', 'fahrkarte', 'bahncard', 'bus', 'taxi', 'fahrt', 'öpnv', 'verkehr'],
-        'fuel': ['benzin', 'diesel', 'super', 'tankstelle', 'kraftstoff', 'sprit'],
-        'office_supplies': ['papier', 'stift', 'kugelschreiber', 'ordner', 'hefter', 'büro', 'schreibwaren'],
-        'electronics': ['handy', 'smartphone', 'laptop', 'computer', 'tablet', 'kabel', 'elektronik', 'technik'],
-        'clothing': ['hemd', 'hose', 'kleid', 'schuhe', 'jacke', 'pullover', 'kleidung', 'mode'],
-        'health_pharmacy': ['medikament', 'tablette', 'salbe', 'apotheke', 'gesundheit', 'pharma', 'arznei'],
-        'household': ['reiniger', 'waschmittel', 'seife', 'shampoo', 'zahnpasta', 'haushalt', 'putzmittel'],
-        'books_media': ['buch', 'zeitschrift', 'cd', 'dvd', 'blu-ray', 'magazin', 'zeitung', 'medien'],
-        'services': ['service', 'dienstleistung', 'reparatur', 'wartung', 'beratung'],
-        'entertainment': ['kino', 'theater', 'konzert', 'entertainment', 'unterhaltung', 'show', 'veranstaltung'],
-        'travel': ['hotel', 'flug', 'zug', 'reise', 'übernachtung', 'unterkunft', 'travel'],
-        'utilities': ['strom', 'gas', 'wasser', 'heizung', 'nebenkosten', 'versorgung'],
-        'maintenance_repair': ['reparatur', 'werkstatt', 'ersatzteil', 'instandhaltung', 'wartung'],
-        'professional_services': ['beratung', 'rechtsanwalt', 'steuerberater', 'notar', 'gutachten'],
-        'insurance': ['versicherung', 'police', 'prämie', 'beitrag', 'schutz'],
-        'taxes_fees': ['steuer', 'gebühr', 'abgabe', 'beitrag', 'amt', 'behörde']
-    }
-    
+    """
+    Heuristic text extraction for receipts.
+
+    All methods are static — instantiate the class or call methods directly.
+    """
+
+    # ------------------------------------------------------------------
+    # Company / vendor
+    # ------------------------------------------------------------------
+
     @staticmethod
     def extract_company_name(text: str) -> Optional[str]:
-        """Extract company name from receipt text."""
-        lines = text.split('\n')
-        for line in lines[:5]:
-            line = line.strip()
-            if line and not re.match(r'^\d', line) and len(line) > 3:
-                skip_words = ['receipt', 'rechnung', 'kassenbon', 'beleg', 'quittung']
-                if not any(word in line.lower() for word in skip_words):
-                    return line
-        return None
-    
-    @staticmethod
-    def extract_date(text: str) -> Optional[datetime]:
-        """Extract date from receipt text."""
-        for pattern in DataExtractor.DATE_PATTERNS:
-            matches = re.findall(pattern, text)
-            for match in matches:
-                try:
-                    if len(match) == 3:
-                        day, month, year = match
-                        if len(year) == 2:  # YY format
-                            year = int(year)
-                            year = 2000 + year if year < 50 else 1900 + year
-                        else:
-                            year = int(year)
-                        
-                        month = month if month.isdigit() else month.lower()
-                        if month.isdigit():
-                            return datetime(year, int(month), int(day))
-                        else:
-                            # Handle month names (German)
-                            month_map = {
-                                'januar': 1, 'january': 1,
-                                'februar': 2, 'february': 2,
-                                'märz': 3, 'marz': 3, 'march': 3,
-                                'april': 4,
-                                'mai': 5, 'may': 5,
-                                'juni': 6, 'june': 6,
-                                'juli': 7, 'july': 7,
-                                'august': 8,
-                                'september': 9,
-                                'oktober': 10, 'october': 10,
-                                'november': 11,
-                                'dezember': 12, 'december': 12
-                            }
-                            if month in month_map:
-                                return datetime(year, month_map[month], int(day))
-                except (ValueError, IndexError):
-                    continue
-        return None
-    
-    @staticmethod
-    def extract_amounts(text: str) -> Dict[str, Optional[Decimal]]:
-        """Extract monetary amounts from text."""
-        amounts = []
-        for pattern in DataExtractor.AMOUNT_PATTERNS:
-            matches = re.findall(pattern, text)
-            for match in matches:
-                try:
-                    amount_str = match.replace('.', '').replace(',', '.')
-                    amount = Decimal(amount_str)
-                    amounts.append(amount)
-                except (InvalidOperation, ValueError):
-                    continue
-        
-        total_amount = max(amounts) if amounts else None
-        return {"total": total_amount, "amounts": amounts}
-    
-    @staticmethod
-    def extract_vat_info(text: str) -> Dict[str, Optional[Decimal]]:
-        """Extract VAT information from text."""
-        for pattern in DataExtractor.VAT_PATTERNS:
-            matches = re.findall(pattern, text)
-            for match in matches:
-                try:
-                    vat_percentage = Decimal(match[0].replace(',', '.'))
-                    vat_amount = Decimal(match[1].replace('.', '').replace(',', '.'))
-                    return {
-                        "vat_percentage": vat_percentage,
-                        "vat_amount": vat_amount
-                    }
-                except (InvalidOperation, ValueError, IndexError):
-                    continue
-        return {"vat_percentage": None, "vat_amount": None}
-    
-    @staticmethod
-    def extract_items(text: str) -> List[Dict[str, Any]]:
-        """Extract individual items from receipt text."""
-        items = []
-        lines = text.split('\n')
-        
-        for line in lines:
+        """
+        Return the first non-trivial line from the top of the receipt.
+
+        Skips blank lines, lines that start with a digit (dates, amounts),
+        and lines containing common boilerplate words.
+        """
+        for line in text.splitlines()[:8]:
             line = line.strip()
             if not line:
                 continue
-                
-            for pattern in DataExtractor.ITEM_PATTERNS:
-                match = re.match(pattern, line)
-                if match:
-                    groups = match.groups()
-                    
-                    if len(groups) == 2:  # Description and price
-                        description = groups[0].strip()
-                        price_str = groups[1].replace('.', '').replace(',', '.')
-                        try:
-                            price = Decimal(price_str)
-                            category = DataExtractor._categorize_item(description)
-                            items.append({
-                                "description": description,
-                                "quantity": None,
-                                "unit_price": None,
-                                "total_price": price,
-                                "category": category,
-                                "vat_rate": None
-                            })
-                        except (InvalidOperation, ValueError):
+            if re.match(r"^\d", line):
+                continue
+            if len(line) < 3:
+                continue
+            if any(w in line.lower() for w in _SKIP_HEADER_WORDS):
+                continue
+            return line
+        return None
+
+    # ------------------------------------------------------------------
+    # Date
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def extract_date(text: str) -> Optional[datetime]:
+        """
+        Return the first parseable date found in the text.
+
+        Handles DD.MM.YYYY, YYYY-MM-DD, DD/MM/YYYY and German month names.
+        Two-digit years are interpreted as 2000+ if < 50, else 1900+.
+        """
+        for pattern, order in _DATE_PATTERNS:
+            for groups in re.findall(pattern, text):
+                try:
+                    a, b, c = groups
+                    if order == "ymd":
+                        year, month_raw, day = a, b, c
+                    else:
+                        day, month_raw, year = a, b, c
+
+                    # Resolve year
+                    year = int(year)
+                    if year < 100:
+                        year = 2000 + year if year < 50 else 1900 + year
+
+                    # Resolve month (numeric or German/English name)
+                    if month_raw.isdigit():
+                        month = int(month_raw)
+                    else:
+                        month = _MONTH_MAP.get(month_raw.lower())
+                        if month is None:
                             continue
-                    
-                    elif len(groups) == 3:  # Quantity, description, price
-                        quantity_str = groups[0].replace(',', '.')
-                        description = groups[1].strip()
-                        price_str = groups[2].replace('.', '').replace(',', '.')
-                        try:
-                            quantity = Decimal(quantity_str)
-                            price = Decimal(price_str)
-                            unit_price = price / quantity if quantity > 0 else None
-                            category = DataExtractor._categorize_item(description)
-                            items.append({
-                                "description": description,
-                                "quantity": quantity,
-                                "unit_price": unit_price,
-                                "total_price": price,
-                                "category": category,
-                                "vat_rate": None
-                            })
-                        except (InvalidOperation, ValueError):
-                            continue
-                    
-                    break
-        
+
+                    return datetime(year, month, int(day))
+                except (ValueError, TypeError):
+                    continue
+        return None
+
+    # ------------------------------------------------------------------
+    # Amounts
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def extract_amounts(text: str) -> Dict[str, Any]:
+        """
+        Extract monetary amounts from text.
+
+        Strategy:
+        1. Scan lines that contain a total-indicating keyword; use the
+           amount on that line as the grand total.
+        2. Fall back to the largest amount found in the document.
+
+        Returns ``{"total": Decimal | None, "all": [Decimal, ...]}``.
+        """
+        all_amounts: List[Decimal] = []
+        total_amount: Optional[Decimal] = None
+
+        for line in text.splitlines():
+            line_lower = line.lower()
+            is_total_line = any(kw in line_lower for kw in _TOTAL_KEYWORDS)
+
+            for pattern in _AMOUNT_PATTERNS:
+                for match in re.findall(pattern, line):
+                    amount = _parse_german_amount(match)
+                    if amount is None:
+                        continue
+                    all_amounts.append(amount)
+                    # Prefer a total-keyword-anchored amount
+                    if is_total_line and total_amount is None:
+                        total_amount = amount
+
+        if total_amount is None and all_amounts:
+            total_amount = max(all_amounts)  # last-resort fallback
+
+        return {"total": total_amount, "all": all_amounts}
+
+    # ------------------------------------------------------------------
+    # VAT
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def extract_vat_info(text: str) -> Dict[str, Optional[Decimal]]:
+        """Extract the first VAT percentage + absolute amount found."""
+        for pattern in _VAT_PATTERNS:
+            for match in re.findall(pattern, text, re.IGNORECASE):
+                try:
+                    vat_pct = Decimal(match[0].replace(",", "."))
+                    vat_amt = _parse_german_amount(match[1])
+                    if vat_pct and vat_amt:
+                        return {"vat_percentage": vat_pct, "vat_amount": vat_amt}
+                except (InvalidOperation, IndexError):
+                    continue
+        return {"vat_percentage": None, "vat_amount": None}
+
+    # ------------------------------------------------------------------
+    # Line items
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def extract_items(text: str) -> List[Dict[str, Any]]:
+        """
+        Parse individual receipt line items.
+
+        Returns a list of dicts with keys matching the LLM extraction
+        schema so both paths feed ``_build_receipt_data`` identically.
+        """
+        items: List[Dict[str, Any]] = []
+
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            for pattern in _ITEM_PATTERNS:
+                m = re.match(pattern, line)
+                if not m:
+                    continue
+                groups = m.groups()
+
+                if len(groups) == 2:                    # description + price
+                    description = groups[0].strip()
+                    total_price = _parse_german_amount(groups[1])
+                    if total_price is None:
+                        continue
+                    items.append({
+                        "description": description,
+                        "quantity":    None,
+                        "unit_price":  None,
+                        "total_price": float(total_price),
+                        "category":    DataExtractor._categorize_item(description),
+                        "vat_rate":    None,
+                    })
+
+                elif len(groups) == 3:                  # qty × description = price
+                    try:
+                        qty = Decimal(groups[0].replace(",", "."))
+                    except InvalidOperation:
+                        continue
+                    description = groups[1].strip()
+                    total_price = _parse_german_amount(groups[2])
+                    if total_price is None:
+                        continue
+                    unit_price = total_price / qty if qty > 0 else None
+                    items.append({
+                        "description": description,
+                        "quantity":    float(qty),
+                        "unit_price":  float(unit_price) if unit_price else None,
+                        "total_price": float(total_price),
+                        "category":    DataExtractor._categorize_item(description),
+                        "vat_rate":    None,
+                    })
+
+                break  # matched a pattern — don't try the others
+
         return items
-    
+
     @staticmethod
     def _categorize_item(description: str) -> str:
-        """Categorize an item based on its description."""
-        description_lower = description.lower()
-        for category, keywords in DataExtractor.CATEGORY_KEYWORDS.items():
-            if any(keyword in description_lower for keyword in keywords):
+        """
+        Map an item description to a receipt category.
+
+        Returns a string that is always a valid ``ReceiptCategory`` value.
+        """
+        lower = description.lower()
+        for category, keywords in _CATEGORY_KEYWORDS.items():
+            if any(kw in lower for kw in keywords):
                 return category
-        return 'other'
+        return "other"
+
+
+# ---------------------------------------------------------------------------
+# JSON cleaning
+# ---------------------------------------------------------------------------
 
 def clean_json_response(response: str) -> str:
-    """Clean and extract JSON from LLM response with robust error handling"""
+    """
+    Extract and sanitise a JSON object from an LLM response string.
+
+    Handles:
+    - Markdown code fences (```json … ```)
+    - Trailing commas in objects and arrays
+    - Unquoted keys **only when they are clearly unquoted** (no surrounding
+      double-quotes) — avoids corrupting valid string values or URLs
+
+    Returns an empty JSON object ``{}`` on total failure so callers can
+    always call ``json.loads()`` on the result.
+    """
+    # Strip markdown fences
+    response = re.sub(r"```(?:json)?\s*", "", response)
+    response = re.sub(r"```\s*$", "", response, flags=re.MULTILINE)
+    response = response.strip()
+
+    # Remove trailing commas before } or ]
+    response = re.sub(r",\s*([}\]])", r"\1", response)
+
+    # Extract the outermost JSON object
+    match = re.search(r"\{.*\}", response, re.DOTALL)
+    if not match:
+        logger.warning("No JSON object found in LLM response.")
+        return "{}"
+
+    candidate = match.group(0)
+
+    # Quote clearly unquoted keys: match word chars preceded by { or ,
+    # and followed by optional whitespace + colon — but only when not
+    # already preceded by a double-quote.
+    candidate = re.sub(
+        r'(?<!["\w])([A-Za-z_]\w*)\s*:',
+        lambda m: f'"{m.group(1)}":',
+        candidate,
+    )
+
     try:
-        # Remove markdown code blocks
-        response = re.sub(r'```(json)?\s*', '', response)
-        response = re.sub(r'```\s*', '', response)
-        
-        # Fix common JSON issues
-        response = response.strip()
-        response = re.sub(r',\s*}', '}', response)  # Trailing commas
-        response = re.sub(r',\s*]', ']', response)  # Trailing commas
-        response = re.sub(r"(\w+)\s*:", r'"\1":', response)  # Unquoted keys
-        
-        # Find JSON object
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            # Validate JSON
-            json.loads(json_match.group(0))  # Test parsing
-            return json_match.group(0)
-            
-        return response
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to clean JSON: {e}")
-        return '{}'  # Return empty object as fallback
+        json.loads(candidate)   # validate
+        return candidate
+    except json.JSONDecodeError as exc:
+        logger.warning("Could not produce valid JSON after cleaning: %s", exc)
+        return "{}"
+
+
+# ---------------------------------------------------------------------------
+# Shared parse helpers (used by agent.py)
+# ---------------------------------------------------------------------------
 
 def parse_decimal(value: Any) -> Optional[Decimal]:
-    """Safely parse decimal value."""
+    """Safely coerce any value to ``Decimal``, returning ``None`` on failure."""
     if value is None:
         return None
     try:
@@ -253,24 +382,28 @@ def parse_decimal(value: Any) -> Optional[Decimal]:
     except (InvalidOperation, ValueError):
         return None
 
+
 def parse_date(date_str: str) -> Optional[datetime]:
-    """Parse date string to datetime object."""
+    """
+    Parse an ISO-format date string (``YYYY-MM-DD``) to ``datetime``.
+
+    Also accepts common European formats as a fallback.  Uses explicit
+    format strings rather than ``%B``/``%b`` to avoid locale dependency.
+    """
     if not date_str:
         return None
-    
-    date_formats = [
+
+    formats = [
         "%Y-%m-%d",
         "%d.%m.%Y",
         "%d/%m/%Y",
         "%Y/%m/%d",
-        "%d %B %Y",  # 12 January 2023
-        "%d %b %Y"   # 12 Jan 2023
     ]
-    
-    for fmt in date_formats:
+    for fmt in formats:
         try:
             return datetime.strptime(date_str, fmt)
         except ValueError:
             continue
-    
-    return None
+
+    # Last resort: delegate to DataExtractor which handles German month names
+    return DataExtractor.extract_date(date_str)

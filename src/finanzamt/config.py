@@ -1,77 +1,205 @@
-import os
-from typing import Dict, Any
+"""
+finanzamt.config
+~~~~~~~~~~~~~~~~
+Central configuration for the finanzamt library.
 
-class Config:
-    """Configuration class for the Finance Agent."""
-    
-    # Default Ollama settings
-    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    DEFAULT_MODEL = os.getenv("FINANZAMT_MODEL", "llama3.2")
-    
-    # OCR settings
-    TESSERACT_CMD = os.getenv("TESSERACT_CMD", "tesseract")
-    OCR_LANGUAGE = os.getenv("OCR_LANGUAGE", "deu+eng")  # German + English
-    OCR_PREPROCESS = os.getenv("OCR_PREPROCESS", "true").lower() == "true"
-    
-    # PDF processing
-    PDF_DPI = int(os.getenv("PDF_DPI", "300"))
-    
-    # Request settings
-    MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
-    REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
-    
-    @classmethod
-    def get_model_config(cls) -> Dict[str, Any]:
-        """Get model configuration."""
-        return {
-            "base_url": cls.OLLAMA_BASE_URL,
-            "model": cls.DEFAULT_MODEL,
-            "temperature": 0.1,
-            "top_p": 0.9,
-            "num_ctx": 4096,
-            "max_retries": cls.MAX_RETRIES,
-            "timeout": cls.REQUEST_TIMEOUT
-        }
-    
-    EXTRACTION_PROMPT_TEMPLATE = """
-    You are a financial document processing agent. Extract the following information from this German receipt text:
+All values have sensible defaults that work out of the box (local Ollama +
+Tesseract). Override any field via a ``.env`` file or environment variables
+— pydantic-settings picks them up automatically.
 
-    RECEIPT HEADER:
-    1. Company name
-    2. Date (in YYYY-MM-DD format)
-    3. Total amount in EUR
-    4. VAT percentage (%)
-    5. VAT amount in EUR
+Usage::
 
-    INDIVIDUAL ITEMS:
-    Extract each purchased item with:
-    - Description/name
-    - Quantity (if available)
-    - Unit price (if available)
-    - Total price for that item
-    - Category (choose from: food_groceries, food_restaurant, beverages, transportation, fuel, office_supplies, electronics, clothing, health_pharmacy, household, books_media, services, entertainment, travel, utilities, maintenance_repair, professional_services, insurance, taxes_fees, other)
-    - VAT rate for that item (if different from main rate)
+    from finanzamt.config import cfg
 
-    Receipt text:
-    {text}
+    print(cfg.ollama_base_url)          # "http://localhost:11434"
+    print(cfg.get_model_config())       # typed ModelConfig dataclass
+"""
 
-    Respond with a JSON object containing:
-    {{
-        "company": "company name",
-        "date": "YYYY-MM-DD",
-        "amount_euro": decimal_number,
-        "vat_percentage": decimal_number,
-        "vat_euro": decimal_number,
-        "confidence_score": float_between_0_and_1,
-        "items": [
-            {{
-                "description": "item description",
-                "quantity": decimal_number_or_null,
-                "unit_price": decimal_number_or_null,
-                "total_price": decimal_number,
-                "category": "category_from_list_above",
-                "vat_rate": decimal_number_or_null
-            }}
-        ]
-    }}
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal
+
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# ---------------------------------------------------------------------------
+# Typed return value for model configuration
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class ModelConfig:
+    """Immutable snapshot of the LLM model settings."""
+
+    base_url: str
+    model: str
+    temperature: float
+    top_p: float
+    num_ctx: int
+    max_retries: int
+    timeout: int
+
+
+# ---------------------------------------------------------------------------
+# Main settings class
+# ---------------------------------------------------------------------------
+
+class Config(BaseSettings):
     """
+    Runtime configuration for finanzamt.
+
+    Reads from (in priority order):
+      1. Environment variables (prefixed with ``FINANZAMT_``)
+      2. A ``.env`` file in the working directory
+      3. The defaults defined below
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="FINANZAMT_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # ------------------------------------------------------------------
+    # Ollama / LLM
+    # ------------------------------------------------------------------
+
+    ollama_base_url: str = Field(
+        default="http://localhost:11434",
+        description="Base URL of the Ollama server.",
+    )
+    model: str = Field(
+        default="llama3.2",
+        description="Ollama model tag to use for extraction.",
+    )
+
+    # LLM inference parameters
+    temperature: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=2.0,
+        description="Sampling temperature (0 = deterministic).",
+    )
+    top_p: float = Field(
+        default=0.9,
+        ge=0.0,
+        le=1.0,
+        description="Nucleus sampling threshold.",
+    )
+    num_ctx: int = Field(
+        default=4096,
+        ge=512,
+        description="Context window size in tokens.",
+    )
+
+    # ------------------------------------------------------------------
+    # OCR — Tesseract
+    # ------------------------------------------------------------------
+
+    tesseract_cmd: str = Field(
+        default="tesseract",
+        description=(
+            "Path to the Tesseract binary. "
+            "On Windows this is typically 'C:/Program Files/Tesseract-OCR/tesseract.exe'."
+        ),
+    )
+    ocr_language: str = Field(
+        default="deu+eng",
+        description=(
+            "Tesseract language codes joined with '+'. "
+            "Requires the corresponding language packs to be installed. "
+            "Example: 'deu+eng' for German + English."
+        ),
+    )
+    ocr_preprocess: bool = Field(
+        default=True,
+        description=(
+            "Whether to apply image pre-processing (deskew, denoise, "
+            "contrast normalisation) before OCR. Improves accuracy on "
+            "low-quality scans at the cost of speed."
+        ),
+    )
+
+    # ------------------------------------------------------------------
+    # PDF rendering
+    # ------------------------------------------------------------------
+
+    pdf_dpi: int = Field(
+        default=300,
+        ge=72,
+        le=1200,
+        description="DPI used when rasterising PDF pages for OCR.",
+    )
+
+    # ------------------------------------------------------------------
+    # HTTP / retry
+    # ------------------------------------------------------------------
+
+    max_retries: int = Field(
+        default=3,
+        ge=0,
+        le=10,
+        description="Number of retry attempts for Ollama API calls.",
+    )
+    request_timeout: int = Field(
+        default=30,
+        ge=1,
+        description="HTTP request timeout in seconds.",
+    )
+
+    # ------------------------------------------------------------------
+    # Validators
+    # ------------------------------------------------------------------
+
+    @field_validator("ollama_base_url")
+    @classmethod
+    def _strip_trailing_slash(cls, v: str) -> str:
+        return v.rstrip("/")
+
+    @field_validator("ocr_language")
+    @classmethod
+    def _validate_language(cls, v: str) -> str:
+        codes = [c.strip() for c in v.split("+") if c.strip()]
+        if not codes:
+            raise ValueError("ocr_language must contain at least one Tesseract language code.")
+        return "+".join(codes)
+
+    @model_validator(mode="after")
+    def _warn_on_high_temperature(self) -> "Config":
+        if self.temperature > 0.5:
+            import warnings
+            warnings.warn(
+                f"temperature={self.temperature} is high for structured extraction. "
+                "Values above 0.3 may produce inconsistent JSON output.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return self
+
+    # ------------------------------------------------------------------
+    # Helper methods
+    # ------------------------------------------------------------------
+
+    def get_model_config(self) -> ModelConfig:
+        """Return an immutable, typed snapshot of the LLM configuration."""
+        return ModelConfig(
+            base_url=self.ollama_base_url,
+            model=self.model,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            num_ctx=self.num_ctx,
+            max_retries=self.max_retries,
+            timeout=self.request_timeout,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton — import this everywhere
+# ---------------------------------------------------------------------------
+
+cfg = Config()
+
+__all__ = ["Config", "ModelConfig", "cfg"]

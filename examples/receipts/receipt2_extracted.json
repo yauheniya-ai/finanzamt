@@ -1,0 +1,34 @@
+{
+  "success": true,
+  "data": {
+    "vendor": "Hausmeister Service",
+    "vendor_address": null,
+    "receipt_number": null,
+    "receipt_date": "2022-03-04",
+    "total_amount": 19.92,
+    "vat_percentage": null,
+    "vat_amount": null,
+    "net_amount": null,
+    "category": "other",
+    "items": [
+      {
+        "description": "Nettobetrag",
+        "quantity": null,
+        "unit_price": null,
+        "total_price": 168.0,
+        "category": "other",
+        "vat_rate": null
+      },
+      {
+        "description": "Gesamtsumme",
+        "quantity": null,
+        "unit_price": null,
+        "total_price": 19.92,
+        "category": "other",
+        "vat_rate": null
+      }
+    ]
+  },
+  "error_message": null,
+  "processing_time": 7.188
+}
