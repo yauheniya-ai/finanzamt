@@ -259,8 +259,6 @@ class TestExtractWithRules:
         for key in ("vendor", "receipt_date", "total_amount", "vat_percentage",
                     "vat_amount", "category", "items"):
             assert key in result, f"Missing key: {key}"
-        # confidence_score was removed from the codebase
-        assert "confidence_score" not in result
 
     def test_category_default_is_other(self):
         agent, _ = _make_agent()

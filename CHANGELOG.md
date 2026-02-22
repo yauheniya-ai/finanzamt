@@ -1,6 +1,7 @@
 # Changelog
 
 ## Version 0.1.4 (2026-02-22)
+
 - **Config refactor:** Replaced scattered `os.getenv` calls with `pydantic-settings.BaseSettings`; all runtime settings are validated, typed, and overridable by `FINANZAMT_` env vars.  
 - **Unified model config:** Promoted key model params (`temperature`, `top_p`, `num_ctx`) to validated fields; `get_model_config()` now returns a frozen `ModelConfig` dataclass.  
 - **Prompt separation:** Moved extraction templates and category definitions (`RECEIPT_CATEGORIES`, `build_extraction_prompt`) to a new `prompts.py` for cleaner separation of config and prompt logic.  
@@ -11,7 +12,6 @@
 - **Utilities overhaul:** Corrected date parsing and German amount handling; improved regex safety and amount extraction heuristics.  
 - **Exception clarity:** Custom exception base now auto-appends cause info, producing cleaner tracebacks.  
 - **Examples updated:** Scripts now use new field names, category logic, output options, and proper exit codes for batch and single receipt processing.  
-
 
 ## Version 0.1.3 (2026-02-21)
 

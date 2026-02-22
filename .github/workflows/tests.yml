@@ -10,7 +10,7 @@ jobs:
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
       
     - name: Install dependencies
-      run: uv sync --dev  
+      run: uv sync --extra dev  
       
     - name: Run tests with coverage
       run: uv run pytest --cov=src --cov-report=term-missing
