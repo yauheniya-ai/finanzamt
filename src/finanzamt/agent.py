@@ -216,15 +216,15 @@ class FinanceAgent:
         vat_info = self.data_extractor.extract_vat_info(text)
 
         return {
-            "vendor":          self.data_extractor.extract_company_name(text),
-            "vendor_address":  None,
-            "receipt_number":  None,
-            "receipt_date":    date.strftime("%Y-%m-%d") if date else None,
-            "total_amount":    float(amounts["total"]) if amounts.get("total") else None,
-            "vat_percentage":  float(vat_info["vat_percentage"]) if vat_info.get("vat_percentage") else None,
-            "vat_amount":      float(vat_info["vat_amount"]) if vat_info.get("vat_amount") else None,
-            "category":        "other",
-            "items":           self.data_extractor.extract_items(text),
+            "vendor":         self.data_extractor.extract_company_name(text),
+            "vendor_address": None,
+            "receipt_number": None,
+            "receipt_date":   date.strftime("%Y-%m-%d") if date else None,
+            "total_amount":   float(amounts["total"]) if amounts.get("total") else None,
+            "vat_percentage": float(vat_info["vat_percentage"]) if vat_info.get("vat_percentage") else None,
+            "vat_amount":     float(vat_info["vat_amount"]) if vat_info.get("vat_amount") else None,
+            "category":       "other",
+            "items":          self.data_extractor.extract_items(text),
         }
 
     # ------------------------------------------------------------------

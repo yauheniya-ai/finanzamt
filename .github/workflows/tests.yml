@@ -1,0 +1,33 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
+    - name: Install dependencies
+      run: uv sync --dev  
+      
+    - name: Run tests with coverage
+      run: uv run pytest --cov=src --cov-report=term-missing
+
+    - name: Extract coverage percentage
+      id: coverage
+      run: |
+        COVERAGE=$(uv run pytest --cov=src --cov-report=term-missing | grep "TOTAL" | awk '{print $NF}' | sed 's/%//')
+        echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+        echo "Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+
+    - name: Update coverage badge
+      uses: schneegans/dynamic-badges-action@v1.4.0
+      with:
+        auth: ${{ secrets.GIST_TOKEN }}
+        gistID: d09f6edc7b1928aeea1fbde834a6080b
+        filename: coverage.json
+        label: coverage
+        message: ${{ steps.coverage.outputs.coverage }}%
+        color: yellow

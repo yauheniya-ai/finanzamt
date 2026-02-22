@@ -1,5 +1,13 @@
 # finanzamt
 
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://img.shields.io/pypi/v/finanzamt?color=blue&label=PyPI)](https://pypi.org/project/finanzamt/)
+[![Tests](https://github.com/yauheniya-ai/finanzamt/actions/workflows/tests.yml/badge.svg)](https://github.com/yauheniya-ai/finanzamt/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/yauheniya-ai/d09f6edc7b1928aeea1fbde834a6080b/raw/coverage.json)](https://github.com/yauheniya-ai/finanzamt/actions/workflows/tests.yml)
+[![GitHub last commit](https://img.shields.io/github/last-commit/yauheniya-ai/finanzamt)](https://github.com/yauheniya-ai/finanzamt/commits/main)
+[![Downloads](https://pepy.tech/badge/finanzamt)](https://pepy.tech/project/finanzamt)
+
 An agentic AI library for processing German financial receipts and extracting structured tax-relevant data.
 
 ## Features
@@ -272,7 +280,7 @@ except OCRProcessingError as e:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-change`)
 3. Make your changes
-4. Run the test suite: `pytest`
+4. Run the test suite: `pytest --cov=src --cov-report=term-missing`
 5. Submit a pull request
 
 ## License
