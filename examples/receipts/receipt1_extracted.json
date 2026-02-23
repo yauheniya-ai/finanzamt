@@ -1,6 +1,7 @@
 {
   "success": true,
   "data": {
+    "id": "13471cd9-5169-43be-a5fb-b2960b405428",
     "vendor": "Hotel Gruber",
     "vendor_address": "Berggasse 10, 1090 Wien",
     "receipt_number": "8455",
@@ -30,5 +31,5 @@
     ]
   },
   "error_message": null,
-  "processing_time": 7.931
+  "processing_time": 7.759
 }

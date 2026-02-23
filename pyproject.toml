@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finanzamt"
-version = "0.1.5"
+version = "0.2.0"
 description = "A Python library for processing receipts, extracting key information, and assisting in the preparation of all essential tax return statements."
 readme = "README.md"
 license = {text = "MIT"}
@@ -45,7 +45,6 @@ dependencies = [
     "Pillow>=9.0.0",
     "opencv-python>=4.6.0",
     "numpy>=1.21.0",
-    "python-dateutil>=2.8.0",
 ]
 
 [project.optional-dependencies]

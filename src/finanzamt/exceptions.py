@@ -2,10 +2,6 @@
 finanzamt.exceptions
 ~~~~~~~~~~~~~~~~~~~~
 Exception hierarchy for the finanzamt library.
-
-All exceptions inherit from ``FinanceAgentError`` so callers can catch
-the entire family with a single ``except FinanceAgentError`` clause while
-still being able to handle specific sub-types when needed.
 """
 
 from __future__ import annotations
@@ -16,7 +12,7 @@ class FinanceAgentError(Exception):
 
     def __init__(self, message: str, *, cause: BaseException | None = None) -> None:
         super().__init__(message)
-        self.cause = cause          # original exception, if any
+        self.cause = cause
         self.message = message
 
     def __str__(self) -> str:
@@ -35,3 +31,16 @@ class LLMExtractionError(FinanceAgentError):
 
 class InvalidReceiptError(FinanceAgentError):
     """Raised when extracted receipt data fails business-logic validation."""
+
+
+class DuplicateReceiptError(FinanceAgentError):
+    """
+    Raised when a receipt with identical content already exists in the DB.
+
+    Attributes:
+        existing_id: The SHA-256 hash / DB id of the existing receipt.
+    """
+
+    def __init__(self, message: str, *, existing_id: str) -> None:
+        super().__init__(message)
+        self.existing_id = existing_id

@@ -1,65 +1,58 @@
 """
 finanzamt.prompts
 ~~~~~~~~~~~~~~~~~
-LLM prompt templates used during receipt extraction.
-
-Kept separate from config so prompts can be versioned, tested, and iterated
-independently from runtime configuration.
+LLM prompt templates for receipt extraction.
 """
 
 from __future__ import annotations
 
-from string import Template
-
-# ---------------------------------------------------------------------------
-# Supported receipt categories
-# ---------------------------------------------------------------------------
-
 RECEIPT_CATEGORIES = [
-    "material",
-    "equipment",
-    "internet",
-    "telecommunication",
-    "software",
-    "education",
-    "travel",
-    "utilities",
-    "insurance",
-    "taxes",
-    "other",
+    "material", "equipment", "internet", "telecommunication",
+    "software", "education", "travel", "utilities",
+    "insurance", "taxes", "other",
 ]
 
 _CATEGORY_LIST = ", ".join(RECEIPT_CATEGORIES)
 
-# ---------------------------------------------------------------------------
-# Extraction prompt
-# ---------------------------------------------------------------------------
-
 EXTRACTION_PROMPT_TEMPLATE: str = f"""
 You are a financial document processing agent specialising in German receipts and invoices.
-Extract the following structured information from the receipt text provided below.
+Extract the following structured information from the receipt text below.
 
 ──────────────────────────────────────────────────────
-RECEIPT HEADER
+DOCUMENT TYPE
 ──────────────────────────────────────────────────────
-1. vendor          — Business or store name
-2. vendor_address  — Full address of the vendor (street, city, postal code)
-3. receipt_number  — Invoice or receipt reference number
-4. receipt_date    — Date in YYYY-MM-DD format
-5. total_amount    — Grand total as a decimal number
-6. vat_percentage  — VAT rate applied (e.g. 19.0 for 19 %)
-7. vat_amount      — Absolute VAT amount as a decimal number
-8. category        — One of: {_CATEGORY_LIST}
+receipt_type:
+  "purchase"  — YOU paid this (vendor sold to you, VAT = Vorsteuer you reclaim)
+  "sale"      — YOU issued this to a client (VAT = Umsatzsteuer you remit)
+  Default to "purchase" when unclear.
 
 ──────────────────────────────────────────────────────
-LINE ITEMS (repeat for every purchased item)
+COUNTERPARTY (vendor if purchase, client if sale)
 ──────────────────────────────────────────────────────
-- description  — Item name or description
-- quantity     — Numeric quantity (null if not stated)
-- unit_price   — Price per unit as a decimal (null if not stated)
-- total_price  — Line-item total as a decimal
-- category     — One of: {_CATEGORY_LIST}
-- vat_rate     — VAT rate for this item as a decimal (e.g. 19.0)
+counterparty_name        — Business or person name
+counterparty_tax_number  — German Steuernummer e.g. "123/456/78901", or null
+counterparty_vat_id      — EU VAT ID e.g. "DE123456789", or null
+counterparty_address     — structured:
+  street         — street name only (no number)
+  street_number  — building number
+  postcode       — postal code
+  city           — city name
+  country        — country name
+
+──────────────────────────────────────────────────────
+RECEIPT FIELDS
+──────────────────────────────────────────────────────
+receipt_number  — invoice/receipt reference, or null
+receipt_date    — YYYY-MM-DD, or null
+total_amount    — grand total as decimal
+vat_percentage  — VAT rate e.g. 19.0, or null
+vat_amount      — absolute VAT as decimal, or null
+category        — one of: {_CATEGORY_LIST}
+
+──────────────────────────────────────────────────────
+LINE ITEMS
+──────────────────────────────────────────────────────
+description, quantity, unit_price, total_price, category, vat_rate
 
 ──────────────────────────────────────────────────────
 RECEIPT TEXT
@@ -67,54 +60,39 @@ RECEIPT TEXT
 {{text}}
 
 ──────────────────────────────────────────────────────
-RESPONSE FORMAT
+OUTPUT — valid JSON only, no markdown, no explanation:
 ──────────────────────────────────────────────────────
-Respond with ONLY a valid JSON object — no markdown fences, no explanation:
-
 {{{{
-  "vendor":          "string",
-  "vendor_address":  "string or null",
-  "receipt_number":  "string or null",
-  "receipt_date":    "YYYY-MM-DD or null",
-  "total_amount":    0.00,
-  "vat_percentage":  0.00,
-  "vat_amount":      0.00,
-  "category":        "string",
+  "receipt_type": "purchase",
+  "counterparty_name": "string",
+  "counterparty_tax_number": null,
+  "counterparty_vat_id": null,
+  "counterparty_address": {{{{
+    "street": null, "street_number": null,
+    "postcode": null, "city": null, "country": null
+  }}}},
+  "receipt_number": null,
+  "receipt_date": null,
+  "total_amount": 0.00,
+  "vat_percentage": null,
+  "vat_amount": null,
+  "category": "other",
   "items": [
-    {{{{
-      "description": "string",
-      "quantity":    1,
-      "unit_price":  0.00,
-      "total_price": 0.00,
-      "category":    "string",
-      "vat_rate":    19.0
-    }}}}
+    {{{{"description": "string", "quantity": 1, "unit_price": 0.00,
+        "total_price": 0.00, "category": "other", "vat_rate": null}}}}
   ]
 }}}}
 
 Rules:
-- Use null for any field that cannot be determined from the text.
-- All monetary values must be decimal numbers (not strings).
-- receipt_date must be in YYYY-MM-DD format or null.
-- Output must be valid JSON parseable by Python's json.loads().
+- null for any field that cannot be determined.
+- Monetary values are decimal numbers, never strings.
+- Output must parse with Python json.loads().
 """
 
 
 def build_extraction_prompt(text: str) -> str:
-    """
-    Render the extraction prompt with the given receipt text.
-
-    Args:
-        text: Raw OCR text extracted from the receipt.
-
-    Returns:
-        Fully formatted prompt string ready to send to the LLM.
-    """
+    """Render the extraction prompt with the given receipt text."""
     return EXTRACTION_PROMPT_TEMPLATE.format(text=text)
 
 
-__all__ = [
-    "RECEIPT_CATEGORIES",
-    "EXTRACTION_PROMPT_TEMPLATE",
-    "build_extraction_prompt",
-]
+__all__ = ["RECEIPT_CATEGORIES", "EXTRACTION_PROMPT_TEMPLATE", "build_extraction_prompt"]
