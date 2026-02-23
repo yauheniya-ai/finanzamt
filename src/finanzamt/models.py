@@ -44,6 +44,8 @@ class ReceiptCategory(str):
     hallucinations never break model construction.
     """
 
+    VALID: frozenset = frozenset(RECEIPT_CATEGORIES)
+
     def __new__(cls, value: str = "other") -> "ReceiptCategory":
         normalised = str(value).strip().lower()
         if normalised not in RECEIPT_CATEGORIES:
@@ -242,6 +244,11 @@ class ReceiptData:
     # ------------------------------------------------------------------
 
     @property
+    def vendor(self) -> Optional[str]:
+        """Backward-compatible alias for counterparty.name."""
+        return self.counterparty.name if self.counterparty else None
+
+    @property
     def net_amount(self) -> Optional[Decimal]:
         if self.total_amount is not None and self.vat_amount is not None:
             return self.total_amount - self.vat_amount
@@ -282,6 +289,7 @@ class ReceiptData:
         return {
             "id":             self.id,
             "receipt_type":   str(self.receipt_type),
+            "vendor":         self.vendor,  # convenience alias for counterparty.name
             "counterparty":   self.counterparty.to_dict() if self.counterparty else None,
             "receipt_number": self.receipt_number,
             "receipt_date":   self.receipt_date.date().isoformat() if self.receipt_date else None,

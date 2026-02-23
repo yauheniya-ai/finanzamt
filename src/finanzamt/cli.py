@@ -385,7 +385,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     tax_group.add_argument(
         "--db", default=None, metavar="FILE",
-        help="SQLite database path (default: ~/.finanzamt/receipts.db).",
+        help="SQLite database path (default: ~/.finanzamt/finanzamt.db).",
     )
 
     return parser

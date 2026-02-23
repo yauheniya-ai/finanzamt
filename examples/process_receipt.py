@@ -30,7 +30,7 @@ def process_receipt(
     file_stem: str,
     input_dir: Path = Path("examples/receipts"),
     output_dir: Path | None = None,
-    db_path: Path | None = None,       # None → use default ~/.finanzamt/receipts.db
+    db_path: Path | None = None,       # None → use default ~/.finanzamt/finanzamt.db
     no_db: bool = False,               # True → disable persistence entirely
     receipt_type: str = "purchase",
 ) -> bool:
@@ -101,7 +101,7 @@ def process_receipt(
     if no_db:
         print("  DB persistence  : disabled")
     else:
-        db_display = db_path or "~/.finanzamt/receipts.db"
+        db_display = db_path or "~/.finanzamt/finanzamt.db"
         print(f"  Saved to DB     : {db_display}")
 
     # ------------------------------------------------------------------
@@ -132,7 +132,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--type",       default="purchase",         choices=["purchase", "sale"],
                    help="purchase = Eingangsrechnung; sale = Ausgangsrechnung.")
     p.add_argument("--db",         default=None,               metavar="FILE",
-                   help="SQLite DB path (default: ~/.finanzamt/receipts.db).")
+                   help="SQLite DB path (default: ~/.finanzamt/finanzamt.db).")
     p.add_argument("--no-db",      action="store_true",
                    help="Disable DB persistence (JSON extraction only).")
     p.add_argument("--verbose", "-v", action="store_true")

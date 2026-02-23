@@ -14,6 +14,7 @@ from decimal import Decimal
 import pytest
 
 from finanzamt.models import ExtractionResult, ReceiptCategory, ReceiptData, ReceiptItem
+from finanzamt.models import Address, Counterparty, ReceiptType
 from finanzamt.prompts import RECEIPT_CATEGORIES
 
 
@@ -130,6 +131,7 @@ class TestReceiptData:
         assert "company" not in d
         assert "amount_euro" not in d
         assert "vat_euro" not in d
+        assert "confidence_score" not in d
 
     def test_to_dict_date_as_iso_string(self, sample_receipt):
         d = sample_receipt.to_dict()

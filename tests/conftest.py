@@ -6,16 +6,16 @@ Shared pytest fixtures for the finanzamt test suite.
 
 from __future__ import annotations
 
-import io
 from datetime import datetime
 from decimal import Decimal
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from finanzamt.config import Config
-from finanzamt.models import ExtractionResult, ReceiptCategory, ReceiptData, ReceiptItem
+from finanzamt.models import (
+    Address, Counterparty, ExtractionResult,
+    ReceiptCategory, ReceiptData, ReceiptItem, ReceiptType,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -24,14 +24,11 @@ from finanzamt.models import ExtractionResult, ReceiptCategory, ReceiptData, Rec
 
 @pytest.fixture
 def default_config() -> Config:
-    """A Config instance with all default values (no .env side-effects)."""
-    return Config(
-        _env_file=None,  # type: ignore[call-arg]
-    )
+    return Config(_env_file=None)  # type: ignore[call-arg]
 
 
 # ---------------------------------------------------------------------------
-# Model instances
+# Model helpers
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
@@ -47,17 +44,32 @@ def sample_item() -> ReceiptItem:
 
 
 @pytest.fixture
-def sample_receipt(sample_item) -> ReceiptData:
+def sample_counterparty() -> Counterparty:
+    return Counterparty(
+        name="Bürobedarf GmbH",
+        address=Address(
+            street="Musterstraße",
+            street_number="1",
+            postcode="10115",
+            city="Berlin",
+            country="Germany",
+        ),
+        vat_id="DE123456789",
+    )
+
+
+@pytest.fixture
+def sample_receipt(sample_item, sample_counterparty) -> ReceiptData:
     return ReceiptData(
-        vendor="Bürobedarf GmbH",
-        vendor_address="Musterstraße 1, 10115 Berlin",
+        raw_text="Bürobedarf GmbH\nDruckerpapier A4 2x 12,99 EUR\nGesamt 25,90 EUR",
+        receipt_type=ReceiptType("purchase"),
+        counterparty=sample_counterparty,
         receipt_number="RE-2024-001",
         receipt_date=datetime(2024, 3, 15),
         total_amount=Decimal("25.90"),
         vat_percentage=Decimal("19.0"),
         vat_amount=Decimal("4.13"),
         category=ReceiptCategory("material"),
-        raw_text="Bürobedarf GmbH\nDruckerpapier A4 2x 12,99 EUR\nGesamt 25,90 EUR",
         items=[sample_item],
     )
 
@@ -81,7 +93,7 @@ def failed_result() -> ExtractionResult:
 
 
 # ---------------------------------------------------------------------------
-# Sample OCR texts
+# OCR / LLM fixtures
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
@@ -107,10 +119,19 @@ Vielen Dank für Ihren Einkauf!
 
 @pytest.fixture
 def llm_json_response() -> dict:
-    """A valid LLM extraction response dict."""
+    """Valid LLM extraction response in the new prompt format."""
     return {
-        "vendor": "Bürobedarf GmbH",
-        "vendor_address": "Musterstraße 1, 10115 Berlin",
+        "receipt_type": "purchase",
+        "counterparty_name": "Bürobedarf GmbH",
+        "counterparty_tax_number": None,
+        "counterparty_vat_id": "DE123456789",
+        "counterparty_address": {
+            "street": "Musterstraße",
+            "street_number": "1",
+            "postcode": "10115",
+            "city": "Berlin",
+            "country": "Germany",
+        },
         "receipt_number": "RE-2024-001",
         "receipt_date": "2024-03-15",
         "total_amount": 21.36,

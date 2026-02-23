@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import time
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -45,7 +46,7 @@ class FinanceAgent:
     Args:
         config:  Optional Config instance (reads .env by default).
         db_path: SQLite database path.
-                 Default: ``~/.finanzamt/receipts.db``.
+                 Default: ``~/.finanzamt/finanzamt.db``.
                  Pass ``None`` to disable persistence entirely.
     """
 
@@ -132,10 +133,13 @@ class FinanceAgent:
                     f"total={receipt_data.total_amount}, date={receipt_data.receipt_date}"
                 )
 
-            # 5 — Auto-save -------------------------------------------------
+            # 5 — Auto-save + PDF copy ------------------------------------
             if self._db_path:
                 with SQLiteRepository(self._db_path) as repo:
                     repo.save(receipt_data)
+                # Copy original PDF alongside the DB for later display
+                if isinstance(pdf_path, (str, Path)):
+                    self._store_pdf(Path(pdf_path), receipt_data.id)
 
             return ExtractionResult(
                 success=True,
@@ -168,6 +172,21 @@ class FinanceAgent:
             str(p): self.process_receipt(p, receipt_type=receipt_type)
             for p in pdf_paths
         }
+
+
+    def _store_pdf(self, src: Path, receipt_id: str) -> None:
+        """Copy the original PDF to ~/.finanzamt/pdfs/<hash>.pdf."""
+        if not src.exists():
+            return
+        try:
+            pdf_dir = self._db_path.parent / "pdfs"
+            pdf_dir.mkdir(parents=True, exist_ok=True)
+            dest = pdf_dir / f"{receipt_id}.pdf"
+            if not dest.exists():
+                shutil.copy2(src, dest)
+                logger.info("PDF stored: %s", dest)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not store PDF copy: %s", exc)
 
     # ------------------------------------------------------------------
     # LLM extraction

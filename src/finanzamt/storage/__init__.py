@@ -3,7 +3,7 @@ finanzamt.storage
 ~~~~~~~~~~~~~~~~~
 Pluggable persistence layer for receipts.
 
-Default backend: SQLite at ``~/.finanzamt/receipts.db``.
+Default backend: SQLite at ``~/.finanzamt/finanzamt.db``.
 
 Usage::
 

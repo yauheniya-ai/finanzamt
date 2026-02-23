@@ -159,7 +159,7 @@ def generate_report(
     if no_db:
         print(f"  DB persistence : disabled")
     else:
-        print(f"  Saved to DB    : {db_path or '~/.finanzamt/receipts.db'}")
+        print(f"  Saved to DB    : {db_path or '~/.finanzamt/finanzamt.db'}")
     print(f"{hdiv}\n")
 
 
@@ -173,7 +173,7 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Also write JSON result files here (optional).")
     p.add_argument("--type",       default="purchase",         choices=["purchase", "sale"])
     p.add_argument("--db",         default=None,               metavar="FILE",
-                   help="SQLite DB path (default: ~/.finanzamt/receipts.db).")
+                   help="SQLite DB path (default: ~/.finanzamt/finanzamt.db).")
     p.add_argument("--no-db",      action="store_true",
                    help="Disable DB persistence.")
     p.add_argument("--verbose", "-v", action="store_true")

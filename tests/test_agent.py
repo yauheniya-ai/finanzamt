@@ -32,7 +32,7 @@ def _make_agent(ocr_text: str = "", *, config: Config | None = None) -> tuple[Fi
     with patch("finanzamt.agent.OCRProcessor") as MockOCR:
         mock_ocr = MockOCR.return_value
         mock_ocr.extract_text_from_pdf.return_value = ocr_text
-        agent = FinanceAgent(config=config)
+        agent = FinanceAgent(config=config, db_path=None)  # disable DB in tests
         agent.ocr_processor = mock_ocr   # replace after construction
     return agent, mock_ocr
 
@@ -52,13 +52,13 @@ def _mock_ollama_response(data: dict) -> MagicMock:
 class TestInit:
     def test_default_config_used_when_none_provided(self):
         with patch("finanzamt.agent.OCRProcessor"):
-            agent = FinanceAgent()
+            agent = FinanceAgent(db_path=None)
         assert isinstance(agent.config, Config)
 
     def test_custom_config_accepted(self):
         config = Config(model="phi3")
         with patch("finanzamt.agent.OCRProcessor"):
-            agent = FinanceAgent(config=config)
+            agent = FinanceAgent(config=config, db_path=None)
         assert agent.config.model == "phi3"
 
     def test_no_basicconfig_called(self):
@@ -67,7 +67,7 @@ class TestInit:
         root = logging.getLogger()
         original_handlers = list(root.handlers)
         with patch("finanzamt.agent.OCRProcessor"):
-            FinanceAgent()
+            FinanceAgent(db_path=None)
         assert list(root.handlers) == original_handlers
 
 
@@ -86,7 +86,7 @@ class TestProcessReceiptSuccess:
 
         assert result.success is True
         assert result.data is not None
-        assert result.data.vendor == "Bürobedarf GmbH"
+        assert result.data.counterparty.name == "Bürobedarf GmbH"
         assert result.data.total_amount == Decimal("21.36")
         assert result.processing_time is not None
 
@@ -256,9 +256,11 @@ class TestExtractWithRules:
     def test_returns_dict_with_expected_keys(self):
         agent, _ = _make_agent()
         result = agent._extract_with_rules("Müller GmbH\nGesamt 49,99 €")
-        for key in ("vendor", "receipt_date", "total_amount", "vat_percentage",
-                    "vat_amount", "category", "items"):
+        for key in ("counterparty_name", "receipt_date", "total_amount",
+                    "vat_percentage", "vat_amount", "category", "items"):
             assert key in result, f"Missing key: {key}"
+        # confidence_score was removed from the codebase
+        assert "confidence_score" not in result
 
     def test_category_default_is_other(self):
         agent, _ = _make_agent()

@@ -15,7 +15,7 @@ Receipt ID
 The ``id`` is the SHA-256 hash of the normalised OCR text (computed by
 ``ReceiptData.__post_init__``).  Identical content → identical ID → duplicate.
 
-Default path: ``~/.finanzamt/receipts.db``
+Default path: ``~/.finanzamt/finanzamt.db``
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from ..models import (
     Address, Counterparty, ReceiptCategory, ReceiptData, ReceiptItem, ReceiptType,
 )
 
-DEFAULT_DB_PATH = Path.home() / ".finanzamt" / "receipts.db"
+DEFAULT_DB_PATH = Path.home() / ".finanzamt" / "finanzamt.db"
 _SCHEMA_VERSION = 1
 
 
