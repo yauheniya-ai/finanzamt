@@ -67,10 +67,10 @@ pip install finanzamt[ui]
 finanzamt --ui
 ```
 
-<div align="center" style="width: 100%;">
-    <img src="https://github.com/yauheniya-ai/finanzamt/blob/main/docs/images/Screenshot.png" alt="Interactive UI" style="width: 100%; height: auto;" />
-    <p><em>Interactive UI</em></p>
-</div>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/yauheniya-ai/finanzamt/main/docs/images/Screenshot.png" width="100%" />
+  <em>Interactive UI to upload receipts and manage tax statements</em>
+</p>
 
 ## Quick Start
 
