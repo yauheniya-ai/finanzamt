@@ -10,6 +10,7 @@
 
 An agentic AI library for processing German financial receipts and extracting structured tax-relevant data.
 
+
 ## Features
 
 - **OCR Processing** — Extract text from scanned receipts and PDFs using Tesseract, with configurable DPI and image pre-processing
@@ -19,6 +20,7 @@ An agentic AI library for processing German financial receipts and extracting st
 - **Batch Processing** — Process entire directories of receipts with per-file JSON output
 - **Typed Models** — All extracted data returned as validated Python dataclasses
 - **Configurable** — All settings overridable via environment variables or a `.env` file
+- **Web UI** — Full web interface for uploading, extracting, and managing receipts, with real-time status and batch support
 
 ## Installation
 
@@ -57,6 +59,18 @@ curl -fsSL https://ollama.ai/install.sh | sh
 # Pull the default model
 ollama pull llama3.2
 ```
+
+## Interactive UI
+
+```bash
+pip install finanzamt[ui]
+finanzamt --ui
+```
+
+<div align="center" style="width: 100%;">
+    <img src="https://github.com/yauheniya-ai/finanzamt/blob/main/docs/images/Screenshot.png" alt="Interactive UI" style="width: 100%; height: auto;" />
+    <p><em>Interactive UI</em></p>
+</div>
 
 ## Quick Start
 

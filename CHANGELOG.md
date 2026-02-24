@@ -1,5 +1,16 @@
 # Changelog
 
+
+## Version 0.3.0 (2026-02-24)
+
+- **Full UI for receipt management:**
+	- Web interface for uploading and extracting receipts
+	- Real-time extraction status and results display
+	- Drag-and-drop PDF upload with batch support
+	- Integrated static assets for responsive layout and branding
+	- API endpoints for programmatic access and automation
+
+
 ## Version 0.2.0 (2026-02-23)
 
 Persistent storage layer with content-addressed receipts, counterparty deduplication, and purchase/sale VAT split
