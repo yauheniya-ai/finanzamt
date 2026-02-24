@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finanzamt"
-version = "0.2.0"
-description = "A Python library for processing receipts, extracting key information, and assisting in the preparation of all essential tax return statements."
+version = "0.3.0"
+description = "A Python library for extracting key information from receipts and preparing essential German tax return statements."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -62,6 +62,11 @@ docs = [
     "sphinx>=5.0",
     "sphinx-rtd-theme>=1.0",
     "myst-parser>=0.18",
+]
+ui = [
+    "fastapi>=0.110", 
+    "uvicorn[standard]>=0.29", 
+    "python-multipart>=0.0.9"
 ]
 
 [project.urls]

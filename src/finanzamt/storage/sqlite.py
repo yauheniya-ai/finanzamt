@@ -320,6 +320,49 @@ class SQLiteRepository:
         cur = self._exec("DELETE FROM receipts WHERE id = ?", (receipt_id,))
         return cur.rowcount > 0
 
+
+    def update(self, receipt_id: str, fields: dict) -> bool:
+        """
+        Partially update a receipt's mutable fields (user corrections).
+
+        Allowed fields: ``receipt_type``, ``receipt_number``, ``receipt_date``,
+        ``total_amount``, ``vat_percentage``, ``vat_amount``, ``category``.
+        Pass ``counterparty_name`` to rename the linked counterparty.
+        Returns True if a row was found and updated.
+        """
+        MUTABLE = {
+            "receipt_type", "receipt_number", "receipt_date",
+            "total_amount", "vat_percentage", "vat_amount", "category",
+        }
+        updates = {k: v for k, v in fields.items() if k in MUTABLE}
+
+        # Counterparty rename
+        if "counterparty_name" in fields:
+            row = self._conn.execute(
+                "SELECT counterparty_id FROM receipts WHERE id = ?", (receipt_id,)
+            ).fetchone()
+            if row and row["counterparty_id"]:
+                self._exec(
+                    "UPDATE counterparties SET name = ? WHERE id = ?",
+                    (fields["counterparty_name"], row["counterparty_id"]),
+                )
+
+        if not updates:
+            return self.exists(receipt_id)
+
+        # Normalise date/decimal to strings for storage
+        if "receipt_date" in updates and updates["receipt_date"]:
+            d = updates["receipt_date"]
+            updates["receipt_date"] = d.isoformat() if hasattr(d, "isoformat") else str(d)
+        for field in ("total_amount", "vat_percentage", "vat_amount"):
+            if field in updates and updates[field] is not None:
+                updates[field] = str(updates[field])
+
+        set_clause = ", ".join(f"{col} = ?" for col in updates)
+        params = tuple(updates.values()) + (receipt_id,)
+        cur = self._exec(f"UPDATE receipts SET {set_clause} WHERE id = ?", params)
+        return cur.rowcount > 0
+
     def list_all(self) -> Iterable[ReceiptData]:
         return self._query_receipts(
             "ORDER BY receipt_date DESC NULLS LAST"

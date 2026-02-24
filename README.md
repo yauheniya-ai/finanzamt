@@ -285,4 +285,4 @@ except OCRProcessingError as e:
 
 ## License
 
-MIT — see `LICENSE` for details.
+MIT — see [LICENSE](https://github.com/yauheniya-ai/finanzamt/blob/main/LICENSE) for details.

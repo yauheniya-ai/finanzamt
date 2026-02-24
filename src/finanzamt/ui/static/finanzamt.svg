@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <circle cx="250" cy="250" r="250" style="fill: #fff;"/>
+  <path d="M79.36,401.41h121.35c1.75,0,3.4-.82,4.46-2.22L425.84,108.32c2.8-3.69.17-8.99-4.46-8.99h-121.35c-1.75,0-3.4.82-4.46,2.22L74.89,392.42c-2.8,3.69-.17,8.99,4.46,8.99Z" style="fill: #fc0;"/>
+  <circle cx="120.16" cy="172.25" r="72.92" style="fill: #231f20;"/>
+  <circle cx="380.57" cy="328.5" r="72.92" style="fill: #d00;"/>
+  <text transform="translate(115.02 414.34) rotate(-45)" style="font-family: Arial-Black, &apos;Arial Black&apos;; font-size: 57px; font-weight: 800;"><tspan x="0" y="0" style="letter-spacing: .1em;">FI</tspan><tspan x="71.6" y="0" style="letter-spacing: .09em;">N</tspan><tspan x="124.23" y="0" style="letter-spacing: .1em;">ANZAMT</tspan></text>
+  <text transform="translate(362.98 344.63)" style="font-family: Arial-Black, &apos;Arial Black&apos;; font-size: 57px; font-weight: 800; letter-spacing: .1em;"><tspan x="0" y="0">§</tspan></text>
+  <text transform="translate(95.94 191.92)" style="fill: #fc0; font-family: Arial-Black, &apos;Arial Black&apos;; font-size: 57px; font-weight: 800; letter-spacing: .1em;"><tspan x="0" y="0">€</tspan></text>
+</svg>

@@ -388,6 +388,29 @@ def _build_parser() -> argparse.ArgumentParser:
         help="SQLite database path (default: ~/.finanzamt/finanzamt.db).",
     )
 
+    # -- Web UI -----------------------------------------------------------
+    ui_group = parser.add_argument_group("Web UI")
+    ui_group.add_argument(
+        "--ui", action="store_true",
+        help="Start the web UI server (requires: pip install finanzamt[ui]).",
+    )
+    ui_group.add_argument(
+        "--host", default="127.0.0.1", metavar="HOST",
+        help="UI server bind address.",
+    )
+    ui_group.add_argument(
+        "--port", default=8000, type=int, metavar="PORT",
+        help="UI server port.",
+    )
+    ui_group.add_argument(
+        "--no-browser", action="store_true",
+        help="Do not open the browser when starting the UI.",
+    )
+    ui_group.add_argument(
+        "--reload", action="store_true",
+        help="Enable hot-reload (development mode).",
+    )
+
     return parser
 
 
@@ -452,6 +475,18 @@ def main() -> int:
             db_path=db_path,
             no_db=no_db,
         )
+
+    # -- Web UI ----------------------------------------------------------
+    if args.ui:
+        from finanzamt.ui.server import launch
+        launch(
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+            open_browser=not args.no_browser,
+            log_level="debug" if args.verbose else "warning",
+        )
+        return 0
 
     parser.print_help()
     return 0
