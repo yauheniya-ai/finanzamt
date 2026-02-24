@@ -1,9 +1,17 @@
 # Changelog
 
+## Version 0.3.1 (2026-02-24)
+Added internationalisation infrastructure and German/English language toggle to the web UI header.
+
+- **DE/EN toggle**: header now has a language switcher — amber track for German, red for English, black thumb; purely React-state-driven (no native input conflict)
+- **react-i18next**: i18n infrastructure wired via `src/i18n.ts` with `de.json` and `en.json` locale files; components use `t("key")` and `i18n.changeLanguage()`
+- **Header localised**: subtitle translates on toggle; install command stays hardcoded in English as `pip install finanzamt` — intentionally not translated
+- **Copy button**: classic two-squares icon next to the install command copies it to clipboard; swaps to a green checkmark for 2s on success
+
 
 ## Version 0.3.0 (2026-02-24)
 
-- **Full UI for receipt management:**
+Full UI for receipt management:
 	- Web interface for uploading and extracting receipts
 	- Real-time extraction status and results display
 	- Drag-and-drop PDF upload with batch support
@@ -14,13 +22,13 @@
 ## Version 0.2.0 (2026-02-23)
 
 Persistent storage layer with content-addressed receipts, counterparty deduplication, and purchase/sale VAT split
-- **4-table schema**: `receipts`, `receipt_items`, `receipt_content`, `counterparties` — each concern in its own table
-- **Content-addressed IDs**: receipt ID is a SHA-256 hash of OCR text; identical content = automatic duplicate detection with user notification
-- **Purchase vs sale split**: `ReceiptType` distinguishes Eingangsrechnung (Vorsteuer you reclaim) from Ausgangsrechnung (Umsatzsteuer you remit); UStVA liability = output − input
-- **Counterparty model**: replaces flat `vendor` string with structured `Counterparty` (parsed address, Steuernummer, USt-IdNr); deduplication by VAT ID then name
-- **Auto-save**: every successful extraction persists to `~/.finanzamt/finanzamt.db` automatically; JSON output is now opt-in via `--output-dir`
-- **PDF archive**: original PDF copied to `~/.finanzamt/pdfs/<hash>.pdf` for later display alongside extracted data
-- **Test suite updated**: storage, UStVA, agent, CLI, and model tests rewritten for new API; all 250+ tests passing
+- 4-table schema: `receipts`, `receipt_items`, `receipt_content`, `counterparties` — each concern in its own table
+- Content-addressed IDs: receipt ID is a SHA-256 hash of OCR text; identical content = automatic duplicate detection with user notification
+- Purchase vs sale split: `ReceiptType` distinguishes Eingangsrechnung (Vorsteuer you reclaim) from Ausgangsrechnung (Umsatzsteuer you remit); UStVA liability = output − input
+- Counterparty model: replaces flat `vendor` string with structured `Counterparty` (parsed address, Steuernummer, USt-IdNr); deduplication by VAT ID then name
+- Auto-save: every successful extraction persists to `~/.finanzamt/finanzamt.db` automatically; JSON output is now opt-in via `--output-dir`
+- PDF archive: original PDF copied to `~/.finanzamt/pdfs/<hash>.pdf` for later display alongside extracted data
+- Test suite updated: storage, UStVA, agent, CLI, and model tests rewritten for new API; all 250+ tests passing
 
 
 ## Version 0.1.5 (2026-02-22)
