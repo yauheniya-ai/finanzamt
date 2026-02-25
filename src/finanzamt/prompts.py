@@ -7,92 +7,87 @@ LLM prompt templates for receipt extraction.
 from __future__ import annotations
 
 RECEIPT_CATEGORIES = [
+    # Revenue categories (sales)
+    "services", "consulting", "products", "licensing",
+    # Expense categories (purchases)
     "material", "equipment", "internet", "telecommunication",
     "software", "education", "travel", "utilities",
-    "insurance", "taxes", "other",
+    "insurance", "taxes",
+    # Fallback
+    "other",
 ]
 
 _CATEGORY_LIST = ", ".join(RECEIPT_CATEGORIES)
 
-EXTRACTION_PROMPT_TEMPLATE: str = f"""
-You are a financial document processing agent specialising in German receipts and invoices.
-Extract the following structured information from the receipt text below.
+EXTRACTION_PROMPT_TEMPLATE: str = f"""You are a financial document processing agent for German receipts and invoices.
+Extract structured data from the document text and return valid JSON only.
 
-──────────────────────────────────────────────────────
 DOCUMENT TYPE
-──────────────────────────────────────────────────────
-receipt_type:
-  "purchase"  — YOU paid this (vendor sold to you, VAT = Vorsteuer you reclaim)
-  "sale"      — YOU issued this to a client (VAT = Umsatzsteuer you remit)
-  Default to "purchase" when unclear.
+receipt_type: "purchase" (you paid this) or "sale" (you invoiced a client). Default: "purchase".
 
-──────────────────────────────────────────────────────
-COUNTERPARTY (vendor if purchase, client if sale)
-──────────────────────────────────────────────────────
-counterparty_name        — Business or person name
-counterparty_tax_number  — German Steuernummer e.g. "123/456/78901", or null
-counterparty_vat_id      — EU VAT ID e.g. "DE123456789", or null
-counterparty_address     — structured:
-  street         — street name only (no number)
-  street_number  — building number
-  postcode       — postal code
-  city           — city name
-  country        — country name
+COUNTERPARTY
+For purchases: the vendor/supplier who issued the document.
+For sales: the client/customer you are billing — look for "An:", "Rechnungsempfänger:", "Kunde:" sections.
+counterparty_name — the actual business or person name. 
+counterparty_tax_number (Steuernummer, or null), counterparty_vat_id (EU VAT ID e.g. DE123456789, or null)
+counterparty_address: street, street_number, postcode, city, country (default "Germany")
 
-──────────────────────────────────────────────────────
-RECEIPT FIELDS
-──────────────────────────────────────────────────────
-receipt_number  — invoice/receipt reference, or null
-receipt_date    — YYYY-MM-DD, or null
-total_amount    — grand total as decimal
-vat_percentage  — VAT rate e.g. 19.0, or null
-vat_amount      — absolute VAT as decimal, or null
-category        — one of: {_CATEGORY_LIST}
+DOCUMENT FIELDS
+receipt_number, receipt_date (YYYY-MM-DD)
+total_amount — grand total as a decimal number (e.g. 119.00). German format "1.234,56 €" → 1234.56
+vat_percentage — e.g. 19.0 for 19% MwSt
+vat_amount — absolute VAT in decimal (e.g. 21.35)
 
-──────────────────────────────────────────────────────
-LINE ITEMS
-──────────────────────────────────────────────────────
-description, quantity, unit_price, total_price, category, vat_rate
+CATEGORY — choose the single best match from this list: {_CATEGORY_LIST}
+Assign the most specific match based on the document content:
+- internet: ISP bills, broadband, hosting, domain registrations
+- telecommunication: phone bills, mobile plans, SIM cards
+- software: app subscriptions, SaaS tools, licenses purchased
+- education: courses, books, training, conferences, workshops
+- travel: flights, hotels, trains, taxis, fuel, parking
+- equipment: hardware, computers, office furniture, tools
+- material: raw materials, office supplies, packaging
+- utilities: electricity, gas, water, waste
+- insurance: any insurance policy
+- taxes: tax payments, notary, legal fees
+- services: freelance work billed TO a client (sale invoices)
+- consulting: advisory or consulting billed TO a client (sale invoices)
+- products: physical goods sold TO a client (sale invoices)
+- licensing: software or IP rights sold TO a client (sale invoices)
+Never default to "other" unless the document genuinely matches none of the above.
 
-──────────────────────────────────────────────────────
-RECEIPT TEXT
-──────────────────────────────────────────────────────
+LINE ITEMS: description, quantity, unit_price, total_price, category (from same list), vat_rate
+
+DOCUMENT TEXT
 {{text}}
 
-──────────────────────────────────────────────────────
-OUTPUT — valid JSON only, no markdown, no explanation:
-──────────────────────────────────────────────────────
+OUTPUT — valid JSON, no markdown:
 {{{{
-  "receipt_type": "purchase",
-  "counterparty_name": "string",
+  "receipt_type": null,
+  "counterparty_name": null,
   "counterparty_tax_number": null,
   "counterparty_vat_id": null,
-  "counterparty_address": {{{{
-    "street": null, "street_number": null,
-    "postcode": null, "city": null, "country": null
-  }}}},
+  "counterparty_address": {{{{"street": null, "street_number": null, "postcode": null, "city": null, "country": null}}}},
   "receipt_number": null,
   "receipt_date": null,
-  "total_amount": 0.00,
+  "total_amount": null,
   "vat_percentage": null,
   "vat_amount": null,
-  "category": "other",
-  "items": [
-    {{{{"description": "string", "quantity": 1, "unit_price": 0.00,
-        "total_price": 0.00, "category": "other", "vat_rate": null}}}}
-  ]
+  "category": null,
+  "items": []
 }}}}
-
-Rules:
-- null for any field that cannot be determined.
-- Monetary values are decimal numbers, never strings.
-- Output must parse with Python json.loads().
+Rules: null for unknown fields. Monetary values are numbers not strings. Output must parse with json.loads().
 """
 
 
 def build_extraction_prompt(text: str) -> str:
     """Render the extraction prompt with the given receipt text."""
-    return EXTRACTION_PROMPT_TEMPLATE.format(text=text)
+    # Hard-truncate OCR text to ~6000 chars (~1500 tokens) to stay within
+    # context window even on small models (4096 ctx). First 6000 chars of an
+    # invoice always contain all header fields; line items near the end are
+    # less critical than totals and counterparty data.
+    truncated = text[:6000] + ("\n[... truncated ...]" if len(text) > 6000 else "")
+    return EXTRACTION_PROMPT_TEMPLATE.format(text=truncated)
 
 
 __all__ = ["RECEIPT_CATEGORIES", "EXTRACTION_PROMPT_TEMPLATE", "build_extraction_prompt"]

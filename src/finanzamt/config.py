@@ -17,8 +17,8 @@ Usage::
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
-from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -90,7 +90,7 @@ class Config(BaseSettings):
         description="Nucleus sampling threshold.",
     )
     num_ctx: int = Field(
-        default=4096,
+        default=8192,
         ge=512,
         description="Context window size in tokens.",
     )
@@ -170,7 +170,6 @@ class Config(BaseSettings):
     @model_validator(mode="after")
     def _warn_on_high_temperature(self) -> "Config":
         if self.temperature > 0.5:
-            import warnings
             warnings.warn(
                 f"temperature={self.temperature} is high for structured extraction. "
                 "Values above 0.3 may produce inconsistent JSON output.",
@@ -194,6 +193,45 @@ class Config(BaseSettings):
             max_retries=self.max_retries,
             timeout=self.request_timeout,
         )
+
+    # ------------------------------------------------------------------
+    # Backward-compatible uppercase aliases
+    # These mirror the original os.getenv-based class attributes so that
+    # existing code (agent.py, ocr_processor.py, etc.) keeps working
+    # without any changes. New code should use the lowercase names.
+    # ------------------------------------------------------------------
+
+    @property
+    def OLLAMA_BASE_URL(self) -> str:  # noqa: N802
+        return self.ollama_base_url
+
+    @property
+    def DEFAULT_MODEL(self) -> str:  # noqa: N802
+        return self.model
+
+    @property
+    def TESSERACT_CMD(self) -> str:  # noqa: N802
+        return self.tesseract_cmd
+
+    @property
+    def OCR_LANGUAGE(self) -> str:  # noqa: N802
+        return self.ocr_language
+
+    @property
+    def OCR_PREPROCESS(self) -> bool:  # noqa: N802
+        return self.ocr_preprocess
+
+    @property
+    def PDF_DPI(self) -> int:  # noqa: N802
+        return self.pdf_dpi
+
+    @property
+    def MAX_RETRIES(self) -> int:  # noqa: N802
+        return self.max_retries
+
+    @property
+    def REQUEST_TIMEOUT(self) -> int:  # noqa: N802
+        return self.request_timeout
 
 
 # ---------------------------------------------------------------------------

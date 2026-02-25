@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finanzamt"
-version = "0.3.0"
+version = "0.3.2"
 description = "A Python library for extracting key information from receipts and preparing essential German tax return statements."
 readme = "README.md"
 license = {text = "MIT"}

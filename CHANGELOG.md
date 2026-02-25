@@ -1,13 +1,20 @@
 # Changelog
 
+## Version 0.3.2 (2026-02-25)
+
+UI improvements for receipt management and database selection:
+- Database selector: users can now choose a database, and all previously processed receipts are loaded automatically.
+- Receipt browsing: receipts are grouped and displayed by year, quarter, and month for easier navigation.
+- Revenue vs expense categorization: all receipts are classified and summarized per category, with totals shown for each.
+- Editable records: editing receipts in the UI updates the corresponding records directly in the database.
+
 ## Version 0.3.1 (2026-02-24)
+
 Added internationalisation infrastructure and German/English language toggle to the web UI header.
-
-- **DE/EN toggle**: header now has a language switcher — amber track for German, red for English, black thumb; purely React-state-driven (no native input conflict)
-- **react-i18next**: i18n infrastructure wired via `src/i18n.ts` with `de.json` and `en.json` locale files; components use `t("key")` and `i18n.changeLanguage()`
-- **Header localised**: subtitle translates on toggle; install command stays hardcoded in English as `pip install finanzamt` — intentionally not translated
-- **Copy button**: classic two-squares icon next to the install command copies it to clipboard; swaps to a green checkmark for 2s on success
-
+- DE/EN toggle: header now has a language switcher — amber track for German, red for English, black thumb; purely React-state-driven (no native input conflict)
+- react-i18next: i18n infrastructure wired via `src/i18n.ts` with `de.json` and `en.json` locale files; components use `t("key")` and `i18n.changeLanguage()`
+- Header localised: subtitle translates on toggle; install command stays hardcoded in English as `pip install finanzamt` — intentionally not translated
+- Copy button: classic two-squares icon next to the install command copies it to clipboard; swaps to a green checkmark for 2s on success
 
 ## Version 0.3.0 (2026-02-24)
 

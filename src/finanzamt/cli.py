@@ -410,6 +410,13 @@ def _build_parser() -> argparse.ArgumentParser:
         "--reload", action="store_true",
         help="Enable hot-reload (development mode).",
     )
+    ui_group.add_argument(
+        "--log-level",
+        default="warning",
+        choices=["debug", "info", "warning", "error"],
+        metavar="LEVEL",
+        help="Log level for the UI server (debug, info, warning, error). Default: warning.",
+    )
 
     return parser
 
@@ -484,7 +491,7 @@ def main() -> int:
             port=args.port,
             reload=args.reload,
             open_browser=not args.no_browser,
-            log_level="debug" if args.verbose else "warning",
+            log_level=args.log_level,
         )
         return 0
 

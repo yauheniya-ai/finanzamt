@@ -113,14 +113,32 @@ class FinanceAgent:
                         )
 
             # 3 — LLM extraction --------------------------------------------
+            import sys
+            print(f"[finanzamt] OCR text ({len(raw_text)} chars, first 300):\n{raw_text[:300]}", file=sys.stderr, flush=True)
             llm_result: Optional[dict] = None
             try:
                 llm_result = self._extract_with_llm(raw_text)
             except LLMExtractionError as exc:
                 logger.warning("LLM failed (%s); using rule-based fallback.", exc)
 
-            if not llm_result or not llm_result.get("items"):
+            # Only fall back to rules if the LLM returned nothing usable.
+            # An empty items list is fine — many invoices have no line items.
+            def _llm_usable(r: Optional[dict]) -> bool:
+                if not r:
+                    return False
+                return bool(
+                    r.get("total_amount")
+                    or r.get("counterparty_name")
+                    or r.get("receipt_number")
+                    or r.get("receipt_date")
+                )
+
+            import sys
+            if not _llm_usable(llm_result):
+                print(f"[finanzamt] FALLBACK to rules. llm_result={llm_result}", file=sys.stderr, flush=True)
                 llm_result = self._extract_with_rules(raw_text, receipt_type)
+            else:
+                print(f"[finanzamt] LLM OK: name={llm_result.get('counterparty_name')!r} date={llm_result.get('receipt_date')!r} total={llm_result.get('total_amount')!r} cat={llm_result.get('category')!r}", file=sys.stderr, flush=True)
 
             # 4 — Build model -----------------------------------------------
             receipt_data = self._build_receipt_data(
@@ -219,7 +237,13 @@ class FinanceAgent:
                     )
                     continue
                 raw = response.json().get("response", "")
-                return json.loads(clean_json_response(raw))
+                import sys
+                print(f"\n[finanzamt] LLM raw ({len(raw)} chars):\n{raw[:2000]}", file=sys.stderr, flush=True)
+                cleaned = clean_json_response(raw)
+                print(f"[finanzamt] cleaned JSON: {cleaned[:500]}", file=sys.stderr, flush=True)
+                parsed = json.loads(cleaned)
+                print(f"[finanzamt] parsed: name={parsed.get('counterparty_name')!r} date={parsed.get('receipt_date')!r} total={parsed.get('total_amount')!r} cat={parsed.get('category')!r}", file=sys.stderr, flush=True)
+                return parsed
 
             except json.JSONDecodeError as exc:
                 logger.warning("Attempt %d/%d — invalid JSON: %s", attempt, model_cfg.max_retries, exc)
@@ -258,6 +282,41 @@ class FinanceAgent:
     # Model construction
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Sanitisation
+    # ------------------------------------------------------------------
+
+    # Field labels that should never appear as extracted values
+    _LABEL_SUFFIXES = (":", "nr.:", "nummer:", "datum:", "betrag:", "summe:")
+    _LABEL_WORDS    = frozenset([
+        "kundennr", "rechnungsnr", "rechnungsnummer", "rechnungsdatum",
+        "bestellnr", "lieferschein", "auftragsnr", "steuer-nr",
+        "steuernummer", "ust-idnr", "mwst-nr", "telefon", "telefax",
+        "e-mail", "email", "web", "www", "iban", "bic", "konto",
+    ])
+
+    def _sanitize_name(self, value: Optional[str]) -> Optional[str]:
+        """
+        Reject strings that look like invoice field labels rather than names.
+        Returns None when the value looks like a label, stripped value otherwise.
+        """
+        if not value:
+            return None
+        v = value.strip()
+        # Reject if it ends with a colon or known label suffix
+        lower = v.lower()
+        if lower.endswith(":") or any(lower.endswith(s) for s in self._LABEL_SUFFIXES):
+            logger.warning("Rejected label-like counterparty_name: %r", v)
+            return None
+        # Reject if the entire value is a known label keyword
+        if lower.rstrip(":").rstrip(".") in self._LABEL_WORDS:
+            logger.warning("Rejected label keyword as counterparty_name: %r", v)
+            return None
+        # Reject very short values that are likely noise
+        if len(v) < 2:
+            return None
+        return v
+
     def _build_receipt_data(
         self, data: dict, raw_text: str, default_type: str = "purchase"
     ) -> ReceiptData:
@@ -270,7 +329,7 @@ class FinanceAgent:
             city=          addr_raw.get("city"),
             country=       addr_raw.get("country"),
         )
-        cp_name = data.get("counterparty_name")
+        cp_name = self._sanitize_name(data.get("counterparty_name"))
         counterparty: Optional[Counterparty] = None
         if cp_name or any(vars(address).values()):
             counterparty = Counterparty(
@@ -296,7 +355,10 @@ class FinanceAgent:
                 logger.warning("Skipping malformed line item: %s", exc)
 
         # --- Receipt type ---
-        rtype = str(data.get("receipt_type") or default_type)
+        # The caller (API / CLI) always knows best — the user explicitly chose
+        # purchase or sale in the UI.  The LLM guess is only a fallback when
+        # no explicit type was provided (default_type == "purchase").
+        rtype = default_type if default_type != "purchase" else str(data.get("receipt_type") or default_type)
 
         raw_date = data.get("receipt_date")
 

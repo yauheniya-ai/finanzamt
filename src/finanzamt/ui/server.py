@@ -132,7 +132,16 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = _build_parser().parse_args()
-    logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(asctime)s %(name)-30s %(levelname)s %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    # Always show finanzamt extraction logs at INFO level so the user can
+    # see what the LLM extracted. Use --log-level debug for full output.
+    logging.getLogger("finanzamt").setLevel(
+        logging.DEBUG if args.log_level == "debug" else logging.INFO
+    )
     launch(
         host=args.host,
         port=args.port,
