@@ -8,19 +8,16 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/yauheniya-ai/finanzamt)](https://github.com/yauheniya-ai/finanzamt/commits/main)
 [![Downloads](https://pepy.tech/badge/finanzamt)](https://pepy.tech/project/finanzamt)
 
-An agentic AI library for processing German financial receipts and extracting structured tax-relevant data.
+A Python library for extracting key information from receipts and preparing essential German tax return statements.
 
 
 ## Features
 
-- **OCR Processing** — Extract text from scanned receipts and PDFs using Tesseract, with configurable DPI and image pre-processing
-- **LLM Extraction** — Uses a locally running Ollama model for intelligent structured data extraction
-- **Rule-based Fallback** — Heuristic extraction when the LLM is unavailable or returns incomplete data
-- **German Tax Alignment** — Category taxonomy and VAT handling aligned with German fiscal practice
-- **Batch Processing** — Process entire directories of receipts with per-file JSON output
-- **Typed Models** — All extracted data returned as validated Python dataclasses
-- **Configurable** — All settings overridable via environment variables or a `.env` file
-- **Web UI** — Full web interface for uploading, extracting, and managing receipts, with real-time status and batch support
+- **German Tax Alignment**: Category taxonomy and VAT handling aligned with German fiscal practice
+- **Local-First**: Everything works locally and completely offline
+- **Multi-Agent**: Uses several consequent models for intelligent structured data extraction
+- **Rule-based**: Heuristic extraction to enhance the LLM's output
+- **Web UI** Full web interface for uploading, extracting, and managing receipts
 
 ## Installation
 
@@ -31,8 +28,8 @@ pip install finanzamt
 ### System Requirements
 
 - Python 3.10+
-- Tesseract OCR installed on your system (with German language pack)
-- Ollama running locally (optional but strongly recommended for accuracy)
+- Tesseract OCR installed on your system
+- Ollama running locally 
 
 #### Tesseract OCR
 
