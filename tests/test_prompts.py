@@ -18,6 +18,7 @@ class TestReceiptCategories:
 
     def test_contains_expected_categories(self):
         expected = {
+            "services", "consulting", "products", "licensing",
             "material", "equipment", "internet", "telecommunication",
             "software", "education", "travel", "utilities",
             "insurance", "taxes", "other",

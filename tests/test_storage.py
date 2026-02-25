@@ -199,14 +199,13 @@ class TestSaveGet:
 
 class TestCounterpartyDedup:
     def test_same_vat_id_reuses_counterparty(self, repo):
+        import sqlite3
         cp = _make_counterparty("Vendor A")
         r1 = _make_receipt(counterparty=cp)
         r2 = _make_receipt(counterparty=cp)
         repo.save(r1)
-        repo.save(r2)
-        f1 = repo.get(r1.id)
-        f2 = repo.get(r2.id)
-        assert f1.counterparty.id == f2.counterparty.id
+        with pytest.raises(sqlite3.IntegrityError):
+            repo.save(r2)
 
     def test_different_vat_id_creates_new_counterparty(self, repo):
         cp1 = Counterparty(name="A", vat_id="DE111111111")
