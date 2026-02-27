@@ -17,7 +17,7 @@ import numpy as np
 import pytesseract
 from PIL import Image
 
-from .config import Config
+from .agents.config import Config
 from .exceptions import OCRProcessingError
 
 logger = logging.getLogger(__name__)

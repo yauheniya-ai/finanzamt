@@ -78,6 +78,34 @@ class SQLiteRepository:
                 self._create_tables()
                 self._conn.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
                 self._conn.commit()
+            # Always run migrations — safe on new and existing DBs
+            self._migrate()
+
+    def _migrate(self) -> None:
+        """Idempotent column/table additions for schema evolution."""
+        for tbl, col, typedef in [
+            ("receipt_items",  "position",   "INTEGER"),
+            ("receipt_items",  "vat_amount",  "TEXT"),
+            ("counterparties", "verified",    "INTEGER DEFAULT 0"),
+        ]:
+            try:
+                self._conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {typedef}")
+                self._conn.commit()
+            except Exception:
+                pass  # column already exists — expected on all but first run
+        # vat_splits table (safe CREATE IF NOT EXISTS)
+        self._conn.executescript("""
+            CREATE TABLE IF NOT EXISTS receipt_vat_splits (
+                id         TEXT PRIMARY KEY,
+                receipt_id TEXT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
+                position   INTEGER,
+                vat_rate   TEXT,
+                vat_amount TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_vat_splits_receipt
+                ON receipt_vat_splits (receipt_id);
+        """)
+        self._conn.commit()
 
     def _create_tables(self) -> None:
         self._conn.executescript("""
@@ -91,6 +119,7 @@ class SQLiteRepository:
                 country      TEXT,
                 tax_number   TEXT,
                 vat_id       TEXT,
+                verified     INTEGER NOT NULL DEFAULT 0,
                 created_at   TEXT NOT NULL
             );
 
@@ -117,15 +146,27 @@ class SQLiteRepository:
             CREATE TABLE IF NOT EXISTS receipt_items (
                 id           TEXT PRIMARY KEY,
                 receipt_id   TEXT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
+                position     INTEGER,
                 description  TEXT,
                 quantity     TEXT,
                 unit_price   TEXT,
                 total_price  TEXT,
-                category     TEXT,
-                vat_rate     TEXT
+                vat_rate     TEXT,
+                vat_amount   TEXT,
+                category     TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_items_receipt ON receipt_items (receipt_id);
+
+            CREATE TABLE IF NOT EXISTS receipt_vat_splits (
+                id           TEXT PRIMARY KEY,
+                receipt_id   TEXT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
+                position     INTEGER,
+                vat_rate     TEXT,
+                vat_amount   TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_vat_splits_receipt ON receipt_vat_splits (receipt_id);
 
             CREATE TABLE IF NOT EXISTS receipt_content (
                 receipt_id   TEXT PRIMARY KEY REFERENCES receipts(id) ON DELETE CASCADE,
@@ -133,6 +174,7 @@ class SQLiteRepository:
                 content_hash TEXT NOT NULL
             );
         """)
+
 
     # ------------------------------------------------------------------
     # Write helpers
@@ -247,22 +289,36 @@ class SQLiteRepository:
             item_rows = [
                 (
                     str(_uuid.uuid4()), receipt.id,
+                    item.position,
                     item.description,
                     str(item.quantity)    if item.quantity    is not None else None,
                     str(item.unit_price)  if item.unit_price  is not None else None,
                     str(item.total_price) if item.total_price is not None else None,
-                    str(item.category),
                     str(item.vat_rate)    if item.vat_rate    is not None else None,
+                    str(item.vat_amount)  if item.vat_amount  is not None else None,
+                    str(item.category),
                 )
                 for item in receipt.items
             ]
             self._conn.executemany(
                 """INSERT INTO receipt_items
-                   (id, receipt_id, description, quantity, unit_price,
-                    total_price, category, vat_rate)
-                   VALUES (?,?,?,?,?,?,?,?)""",
+                   (id, receipt_id, position, description, quantity, unit_price,
+                    total_price, vat_rate, vat_amount, category)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 item_rows,
             )
+
+            # vat_splits
+            if hasattr(receipt, 'vat_splits') and receipt.vat_splits:
+                import uuid as _uuid_vs
+                for pos, split in enumerate(receipt.vat_splits, start=1):
+                    self._conn.execute(
+                        """INSERT INTO receipt_vat_splits (id, receipt_id, position, vat_rate, vat_amount)
+                           VALUES (?, ?, ?, ?, ?)""",
+                        (str(_uuid_vs.uuid4()), receipt.id, split.get("position", pos),
+                         str(split["vat_rate"]) if split.get("vat_rate") is not None else None,
+                         str(split["vat_amount"]) if split.get("vat_amount") is not None else None),
+                    )
 
             # receipt_content
             self._conn.execute(
@@ -290,7 +346,7 @@ class SQLiteRepository:
             """SELECT r.*, rc.raw_text,
                       c.id as cp_id, c.name as cp_name,
                       c.street, c.street_number, c.postcode, c.city, c.country,
-                      c.tax_number, c.vat_id
+                      c.tax_number, c.vat_id, COALESCE(c.verified, 0) as verified
                FROM receipts r
                LEFT JOIN receipt_content rc ON rc.receipt_id = r.id
                LEFT JOIN counterparties c   ON c.id = r.counterparty_id
@@ -351,29 +407,129 @@ class SQLiteRepository:
         ).fetchone()
         cp_id = cp_row["counterparty_id"] if cp_row else None
 
-        if cp_id:
-            cp_updates: dict = {}
+        # Collect all counterparty field changes
+        cp_updates: dict = {}
+        for field_in, col in CP_SCALAR.items():
+            if field_in in fields and fields[field_in] is not None:
+                cp_updates[col] = fields[field_in]
+        addr = fields.get("address", {})
+        if isinstance(addr, dict):
+            for k in ADDR_FIELDS:
+                if k in addr:
+                    cp_updates[k] = addr[k]
 
-            # Scalar counterparty fields
-            for field_in, col in CP_SCALAR.items():
-                if field_in in fields and fields[field_in] is not None:
-                    cp_updates[col] = fields[field_in]
-
-            # Address sub-dict  e.g. {"street": "...", "city": "..."}
-            addr = fields.get("address", {})
-            if isinstance(addr, dict):
-                for k in ADDR_FIELDS:
-                    if k in addr:
-                        cp_updates[k] = addr[k]
-
-            if cp_updates:
+        if cp_updates:
+            if cp_id:
+                # Update existing counterparty row
                 set_clause = ", ".join(f"{col} = ?" for col in cp_updates)
                 params = tuple(cp_updates.values()) + (cp_id,)
                 self._exec(
                     f"UPDATE counterparties SET {set_clause} WHERE id = ?", params
                 )
+            else:
+                # No counterparty row yet — create one and link it to the receipt
+                import uuid
+                new_cp_id = str(uuid.uuid4())
+                self._exec(
+                    """INSERT INTO counterparties
+                       (id, name, street, street_number, postcode, city, country,
+                        tax_number, vat_id, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        new_cp_id,
+                        cp_updates.get("name"),
+                        cp_updates.get("street"),
+                        cp_updates.get("street_number"),
+                        cp_updates.get("postcode"),
+                        cp_updates.get("city"),
+                        cp_updates.get("country"),
+                        cp_updates.get("tax_number"),
+                        cp_updates.get("vat_id"),
+                        self._now(),
+                    ),
+                )
+                self._exec(
+                    "UPDATE receipts SET counterparty_id = ? WHERE id = ?",
+                    (new_cp_id, receipt_id),
+                )
+
+        # VAT splits — full replace when provided
+        if "vat_splits" in fields and isinstance(fields["vat_splits"], list):
+            import uuid as _uuid_vs2
+            self._exec("DELETE FROM receipt_vat_splits WHERE receipt_id = ?", (receipt_id,))
+            for pos, split in enumerate(fields["vat_splits"], start=1):
+                self._exec(
+                    """INSERT INTO receipt_vat_splits (id, receipt_id, position, vat_rate, vat_amount)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (str(_uuid_vs2.uuid4()), receipt_id,
+                     split.get("position", pos),
+                     str(split["vat_rate"])    if split.get("vat_rate")    is not None else None,
+                     str(split["vat_amount"])  if split.get("vat_amount")  is not None else None),
+                )
+
+        # Counterparty verified flag
+        if "counterparty_verified" in fields and cp_id:
+            self._exec(
+                "UPDATE counterparties SET verified = ? WHERE id = ?",
+                (1 if fields["counterparty_verified"] else 0, cp_id),
+            )
+
+        # Items — full replace when provided
+        if "items" in fields and isinstance(fields["items"], list):
+            import uuid as _uuid3
+            self._exec("DELETE FROM receipt_items WHERE receipt_id = ?", (receipt_id,))
+            for pos, item in enumerate(fields["items"], start=1):
+                self._exec(
+                    """INSERT INTO receipt_items
+                       (id, receipt_id, position, description, quantity, unit_price,
+                        total_price, vat_rate, vat_amount, category)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        str(_uuid3.uuid4()),
+                        receipt_id,
+                        item.get("position", pos),
+                        item.get("description"),
+                        str(item["quantity"])    if item.get("quantity")    is not None else None,
+                        str(item["unit_price"])  if item.get("unit_price")  is not None else None,
+                        str(item["total_price"]) if item.get("total_price") is not None else None,
+                        str(item["vat_rate"])    if item.get("vat_rate")    is not None else None,
+                        str(item["vat_amount"])  if item.get("vat_amount")  is not None else None,
+                        item.get("category", "other"),
+                    ),
+                )
 
         return self.exists(receipt_id)
+
+    def list_verified_counterparties(self) -> list[dict]:
+        """Return all counterparties where verified=1."""
+        rows = self._conn.execute(
+            """SELECT id, name, street, street_number, postcode, city, country,
+                      tax_number, vat_id, verified
+               FROM counterparties WHERE verified = 1 ORDER BY name ASC"""
+        ).fetchall()
+        return [
+            {
+                "id":           r["id"],
+                "name":         r["name"],
+                "tax_number":   r["tax_number"],
+                "vat_id":       r["vat_id"],
+                "verified":     bool(r["verified"]),
+                "address": {
+                    "street":        r["street"],
+                    "street_number": r["street_number"],
+                    "postcode":      r["postcode"],
+                    "city":          r["city"],
+                    "country":       r["country"],
+                },
+            }
+            for r in rows
+        ]
+
+    def set_counterparty_verified(self, cp_id: str, verified: bool) -> None:
+        self._exec(
+            "UPDATE counterparties SET verified = ? WHERE id = ?",
+            (1 if verified else 0, cp_id),
+        )
 
     def list_all(self) -> Iterable[ReceiptData]:
         return self._query_receipts(
@@ -409,7 +565,7 @@ class SQLiteRepository:
             SELECT r.*, rc.raw_text,
                    c.id as cp_id, c.name as cp_name,
                    c.street, c.street_number, c.postcode, c.city, c.country,
-                   c.tax_number, c.vat_id
+                   c.tax_number, c.vat_id, COALESCE(c.verified, 0) as verified
             FROM receipts r
             LEFT JOIN receipt_content rc ON rc.receipt_id = r.id
             LEFT JOIN counterparties  c  ON c.id = r.counterparty_id
@@ -422,6 +578,7 @@ class SQLiteRepository:
         # Counterparty
         cp: Counterparty | None = None
         if row["cp_id"]:
+            _cp_verified = row["verified"] if "verified" in row.keys() else 0
             cp = Counterparty(
                 id=row["cp_id"],
                 name=row["cp_name"],
@@ -434,6 +591,7 @@ class SQLiteRepository:
                 ),
                 tax_number=row["tax_number"],
                 vat_id=row["vat_id"],
+                verified=bool(_cp_verified),
             )
 
         # receipt_date
@@ -444,22 +602,40 @@ class SQLiteRepository:
 
         # items (separate query to keep row simple)
         item_rows = self._conn.execute(
-            "SELECT * FROM receipt_items WHERE receipt_id = ?", (row["id"],)
+            "SELECT * FROM receipt_items WHERE receipt_id = ? ORDER BY position ASC NULLS LAST",
+            (row["id"],)
         ).fetchall()
         items = [
             ReceiptItem(
                 description=ir["description"] or "",
+                position=   ir["position"] if "position" in ir.keys() else None,
                 quantity=   self._dec(ir["quantity"]),
                 unit_price= self._dec(ir["unit_price"]),
                 total_price=self._dec(ir["total_price"]),
-                category=   ReceiptCategory(ir["category"] or "other"),
                 vat_rate=   self._dec(ir["vat_rate"]),
+                vat_amount= self._dec(ir["vat_amount"]) if "vat_amount" in ir.keys() else None,
+                category=   ReceiptCategory(ir["category"] or "other"),
             )
             for ir in item_rows
         ]
 
+        # vat_splits
+        split_rows = self._conn.execute(
+            "SELECT * FROM receipt_vat_splits WHERE receipt_id = ? ORDER BY position ASC",
+            (row["id"],)
+        ).fetchall()
+        vat_splits = [
+            {
+                "position":   sr["position"],
+                "vat_rate":   float(self._dec(sr["vat_rate"]))   if sr["vat_rate"]   else None,
+                "vat_amount": float(self._dec(sr["vat_amount"])) if sr["vat_amount"] else None,
+            }
+            for sr in split_rows
+        ]
+
         receipt = ReceiptData.__new__(ReceiptData)
         receipt.raw_text       = row["raw_text"] or ""
+        receipt.vat_splits     = vat_splits
         receipt.id             = row["id"]
         receipt.receipt_type   = ReceiptType(row["receipt_type"] or "purchase")
         receipt.counterparty   = cp
@@ -471,3 +647,4 @@ class SQLiteRepository:
         receipt.category       = ReceiptCategory(row["category"] or "other")
         receipt.items          = items
         return receipt
+    

@@ -1,7 +1,7 @@
 """
 finanzamt
 ~~~~~~~~~
-A Python library for processing receipts, extracting key information, and assisting in the preparation of all essential tax return statements.
+OCR-powered German tax receipt processor.
 
 Typical usage::
 
@@ -16,8 +16,8 @@ Typical usage::
         print(result.error_message)
 """
 
-from .agent import FinanceAgent
-from .config import Config, ModelConfig, cfg
+from .agents.agent import FinanceAgent
+from .agents.config import Config, ModelConfig, cfg
 from .exceptions import (
     FinanceAgentError,
     InvalidReceiptError,
@@ -25,7 +25,7 @@ from .exceptions import (
     OCRProcessingError,
 )
 from .models import ExtractionResult, ReceiptCategory, ReceiptData, ReceiptItem
-from .prompts import RECEIPT_CATEGORIES, build_extraction_prompt
+from .agents.prompts import RECEIPT_CATEGORIES
 
 __all__ = [
     # Core agent

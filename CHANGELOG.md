@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 0.3.3 (2026-02-27)
+
+UI and database improvements
+- Filtering by year, quarter, and month in the sidebar
+- Sidebar translation implemented
+- Style enhancements to the sidebar
+- PreviewPanel allows verifying counterparties and reusing the verified info across receipts
+- Address toggle: full details are optionally shown/hidden
+- VAT splitting and items addition/deletion fully supported
+
 ## Version 0.3.2 (2026-02-25)
 
 UI improvements for receipt management and database selection:

@@ -37,14 +37,18 @@ from fastapi.staticfiles import StaticFiles
 # finanzamt integration
 # ---------------------------------------------------------------------------
 try:
-    from finanzamt.agent import FinanceAgent
-    from finanzamt.config import Config
-    from finanzamt.prompts import RECEIPT_CATEGORIES
+    from finanzamt.agents.agent import FinanceAgent
+    from finanzamt.agents.config import Config
+    from finanzamt.agents.prompts import RECEIPT_CATEGORIES
     from finanzamt.storage.sqlite import DEFAULT_DB_PATH, SQLiteRepository
     from finanzamt.tax.ustva import generate_ustva
     _LIB_AVAILABLE = True
     _cfg = Config()
-except ImportError:
+except ImportError as _import_err:
+    import traceback, sys
+    print("\n[finanzamt] IMPORT ERROR — library failed to load:", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    print(file=sys.stderr)
     _LIB_AVAILABLE = False
     _cfg = None  # type: ignore
     RECEIPT_CATEGORIES = [
@@ -304,6 +308,29 @@ def delete_receipt(receipt_id: str, db: Optional[str] = Query(default=None)):
 # Tax
 # ---------------------------------------------------------------------------
 
+@app.get("/counterparties/verified", tags=["counterparties"])
+def list_verified_counterparties(db: Optional[str] = Query(default=None)):
+    """Return all counterparties marked as verified."""
+    db_path = _resolve_db(db)
+    with _repo(db_path) as repo:
+        rows = repo.list_verified_counterparties()
+    return {"counterparties": rows}
+
+
+@app.patch("/counterparties/{cp_id}/verify", tags=["counterparties"])
+def set_counterparty_verified(
+    cp_id: str,
+    body: dict,
+    db: Optional[str] = Query(default=None),
+):
+    """Set verified=true/false on a counterparty."""
+    db_path = _resolve_db(db)
+    verified = bool(body.get("verified", True))
+    with _repo(db_path) as repo:
+        repo.set_counterparty_verified(cp_id, verified)
+    return {"ok": True, "cp_id": cp_id, "verified": verified}
+
+
 @app.get("/tax/ustva", tags=["tax"])
 def get_ustva(
     quarter: int           = Query(..., ge=1, le=4),
@@ -343,3 +370,4 @@ else:
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_not_built(full_path: str):
         return {"error": "Frontend not built yet."}
+    

@@ -10,7 +10,6 @@
 
 A Python library for extracting key information from receipts and preparing essential German tax return statements.
 
-
 ## Features
 
 - **German Tax Alignment**: Category taxonomy and VAT handling aligned with German fiscal practice

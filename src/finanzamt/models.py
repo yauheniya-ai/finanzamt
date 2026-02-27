@@ -29,7 +29,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
 
-from .prompts import RECEIPT_CATEGORIES
+from .agents.prompts import RECEIPT_CATEGORIES
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +161,7 @@ class Counterparty:
     address:     Address = field(default_factory=Address.empty)
     tax_number:  Optional[str] = None   # German Steuernummer
     vat_id:      Optional[str] = None   # EU USt-IdNr e.g. DE123456789
+    verified:    bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -169,6 +170,7 @@ class Counterparty:
             "address":      self.address.to_dict(),
             "tax_number":   self.tax_number,
             "vat_id":       self.vat_id,
+            "verified":     self.verified,
         }
 
 
@@ -181,20 +183,24 @@ class ReceiptItem:
     """A single line item within a receipt."""
 
     description: str = ""
+    position:    Optional[int] = None
     quantity:    Optional[Decimal] = None
     unit_price:  Optional[Decimal] = None
     total_price: Optional[Decimal] = None
-    category:    ReceiptCategory = field(default_factory=ReceiptCategory.other)
     vat_rate:    Optional[Decimal] = None
+    vat_amount:  Optional[Decimal] = None
+    category:    ReceiptCategory = field(default_factory=ReceiptCategory.other)
 
     def to_dict(self) -> dict:
         return {
+            "position":    self.position,
             "description": self.description,
             "quantity":    float(self.quantity)    if self.quantity    is not None else None,
             "unit_price":  float(self.unit_price)  if self.unit_price  is not None else None,
             "total_price": float(self.total_price) if self.total_price is not None else None,
-            "category":    str(self.category),
             "vat_rate":    float(self.vat_rate)    if self.vat_rate    is not None else None,
+            "vat_amount":  float(self.vat_amount)  if self.vat_amount  is not None else None,
+            "category":    str(self.category),
         }
 
 
@@ -235,6 +241,7 @@ class ReceiptData:
     vat_amount:       Optional[Decimal] = None
     category:         ReceiptCategory = field(default_factory=ReceiptCategory.other)
     items:            List[ReceiptItem] = field(default_factory=list)
+    vat_splits:       List[dict] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.id = _content_hash(self.raw_text)
@@ -299,6 +306,7 @@ class ReceiptData:
             "net_amount":     float(self.net_amount)     if self.net_amount     is not None else None,
             "category":       str(self.category),
             "items":          [item.to_dict() for item in self.items],
+            "vat_splits":     getattr(self, "vat_splits", []),
         }
 
     def to_json(self) -> str:
@@ -335,3 +343,4 @@ class ExtractionResult:
             "error_message":   self.error_message,
             "processing_time": round(self.processing_time, 3) if self.processing_time else None,
         }
+    

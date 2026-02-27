@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 # Category keywords aligned with RECEIPT_CATEGORIES in prompts.py.
 # The LLM and the rule-based fallback must agree on category names.
-from .prompts import RECEIPT_CATEGORIES
+from .agents.prompts import RECEIPT_CATEGORIES
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
