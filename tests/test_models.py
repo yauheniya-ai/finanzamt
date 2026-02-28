@@ -15,7 +15,7 @@ import pytest
 
 from finanzamt.models import ExtractionResult, ReceiptCategory, ReceiptData, ReceiptItem
 from finanzamt.models import Address, Counterparty, ReceiptType
-from finanzamt.prompts import RECEIPT_CATEGORIES
+from finanzamt.agents.prompts import RECEIPT_CATEGORIES
 
 
 class TestReceiptCategory:
@@ -58,8 +58,8 @@ class TestReceiptItem:
     def test_to_dict_structure(self, sample_item):
         d = sample_item.to_dict()
         assert set(d.keys()) == {
-            "description", "quantity", "unit_price",
-            "total_price", "category", "vat_rate",
+            "description", "position", "quantity", "unit_price",
+            "total_price", "category", "vat_rate", "vat_amount"
         }
 
     def test_to_dict_decimal_as_float(self, sample_item):
@@ -131,6 +131,7 @@ class TestReceiptData:
         assert "company" not in d
         assert "amount_euro" not in d
         assert "vat_euro" not in d
+        assert "confidence_score" not in d
 
     def test_to_dict_date_as_iso_string(self, sample_receipt):
         d = sample_receipt.to_dict()

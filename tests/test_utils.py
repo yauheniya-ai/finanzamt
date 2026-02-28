@@ -20,7 +20,7 @@ from decimal import Decimal
 
 import pytest
 
-from finanzamt.prompts import RECEIPT_CATEGORIES
+from finanzamt.agents.prompts import RECEIPT_CATEGORIES
 from finanzamt.utils import (
     DataExtractor,
     clean_json_response,

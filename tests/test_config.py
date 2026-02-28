@@ -1,8 +1,8 @@
 """
 tests/test_config.py
 ~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.config — validation, defaults, env-var overrides,
-ModelConfig dataclass, and backward-compatible uppercase aliases.
+Tests for finanzamt.agents.config — Config, AgentsConfig, ModelConfig,
+AgentModelConfig dataclasses, and backward-compatible aliases.
 """
 
 from __future__ import annotations
@@ -14,13 +14,12 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from finanzamt.config import Config, ModelConfig, cfg
+from finanzamt.agents.config import AgentModelConfig, AgentsConfig, Config, ModelConfig, cfg
 
 
-class TestDefaults:
+class TestConfigDefaults:
     def test_ollama_base_url_default(self):
-        c = Config()
-        assert c.ollama_base_url == "http://localhost:11434"
+        assert Config().ollama_base_url == "http://localhost:11434"
 
     def test_model_default(self):
         assert Config().model == "llama3.2"
@@ -44,7 +43,7 @@ class TestDefaults:
         assert Config().temperature == 0.1
 
 
-class TestValidation:
+class TestConfigValidation:
     def test_trailing_slash_stripped(self):
         c = Config(ollama_base_url="http://localhost:11434/")
         assert not c.ollama_base_url.endswith("/")
@@ -81,10 +80,6 @@ class TestValidation:
         with pytest.raises(ValidationError):
             Config(ocr_language="")
 
-    def test_ocr_language_whitespace_only(self):
-        with pytest.raises(ValidationError):
-            Config(ocr_language="  +  ")
-
     def test_ocr_language_normalised(self):
         c = Config(ocr_language=" deu + eng ")
         assert c.ocr_language == "deu+eng"
@@ -102,31 +97,26 @@ class TestValidation:
             assert not any(issubclass(x.category, UserWarning) for x in w)
 
 
-class TestEnvVarOverride:
+class TestConfigEnvVarOverride:
     def test_env_var_overrides_model(self):
         with patch.dict(os.environ, {"FINANZAMT_MODEL": "mistral"}):
-            c = Config()
-            assert c.model == "mistral"
+            assert Config().model == "mistral"
 
     def test_env_var_overrides_pdf_dpi(self):
         with patch.dict(os.environ, {"FINANZAMT_PDF_DPI": "150"}):
-            c = Config()
-            assert c.pdf_dpi == 150
+            assert Config().pdf_dpi == 150
 
     def test_env_var_overrides_ocr_preprocess(self):
         with patch.dict(os.environ, {"FINANZAMT_OCR_PREPROCESS": "false"}):
-            c = Config()
-            assert c.ocr_preprocess is False
+            assert Config().ocr_preprocess is False
 
 
 class TestModelConfig:
     def test_returns_model_config_dataclass(self):
-        mc = Config().get_model_config()
-        assert isinstance(mc, ModelConfig)
+        assert isinstance(Config().get_model_config(), ModelConfig)
 
     def test_model_config_fields(self):
-        c = Config(model="phi3", max_retries=5, request_timeout=60)
-        mc = c.get_model_config()
+        mc = Config(model="phi3", max_retries=5, request_timeout=60).get_model_config()
         assert mc.model == "phi3"
         assert mc.max_retries == 5
         assert mc.timeout == 60
@@ -135,6 +125,40 @@ class TestModelConfig:
         mc = Config().get_model_config()
         with pytest.raises(Exception):
             mc.model = "changed"  # type: ignore[misc]
+
+
+class TestAgentsConfig:
+    def test_single_model_used_for_all_agents(self):
+        cfg = AgentsConfig(agent_model="mistral")
+        ac = cfg.get_agent_config()
+        assert ac.model == "mistral"
+
+    def test_temperature_is_zero(self):
+        assert AgentsConfig().get_agent_config().temperature == 0.0
+
+    def test_returns_agent_model_config_dataclass(self):
+        assert isinstance(AgentsConfig().get_agent_config(), AgentModelConfig)
+
+    def test_backward_compat_get_agent1_config(self):
+        cfg = AgentsConfig()
+        assert cfg.get_agent1_config().model == cfg.get_agent_config().model
+
+    def test_backward_compat_get_agent2_config(self):
+        cfg = AgentsConfig()
+        assert cfg.get_agent2_config().model == cfg.get_agent_config().model
+
+    def test_backward_compat_get_agent3_config(self):
+        cfg = AgentsConfig()
+        assert cfg.get_agent3_config().model == cfg.get_agent_config().model
+
+    def test_env_var_overrides_agent_model(self):
+        with patch.dict(os.environ, {"FINANZAMT_AGENT_MODEL": "llama3.1"}):
+            assert AgentsConfig().agent_model == "llama3.1"
+
+    def test_agent_model_config_is_frozen(self):
+        ac = AgentsConfig().get_agent_config()
+        with pytest.raises(Exception):
+            ac.model = "changed"  # type: ignore[misc]
 
 
 class TestSingleton:

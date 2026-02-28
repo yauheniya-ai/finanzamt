@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
 
-from finanzamt.config import Config
+from finanzamt.agents.config import Config
 from finanzamt.exceptions import OCRProcessingError
 from finanzamt.ocr_processor import OCRProcessor
 

@@ -133,7 +133,7 @@ class Config(BaseSettings):
 
     # Backward-compatible uppercase aliases
     @property
-    def OLLAMA_BASE_URL(self) -> str:   return self.ollama_base_url   # noqa: N802
+    def OLLAMA_BASE_URL(self) -> str:   return self.ollama_base_url  # noqa: N802
     @property
     def DEFAULT_MODEL(self) -> str:     return self.model             # noqa: N802
     @property
@@ -156,8 +156,9 @@ class Config(BaseSettings):
 
 class AgentsConfig(BaseSettings):
     """
-    Per-agent LLM model configuration.
-    All temperatures default to 0.0 — fully deterministic JSON extraction.
+    LLM model configuration for the 4-agent extraction pipeline.
+    All 4 agents use the same model — override with FINANZAMT_AGENT_MODEL.
+    Temperature is 0.0 for deterministic JSON extraction.
     """
 
     model_config = SettingsConfigDict(
@@ -170,51 +171,29 @@ class AgentsConfig(BaseSettings):
 
     ollama_base_url: str = Field(default="http://localhost:11434")
 
-    # Agent 1 — text LLM (OCR text + rule hints → json1)
-    agent1_model:       str = Field(default="qwen2.5:7b-instruct-q4_K_M")
-    agent1_timeout:     int = Field(default=60)
-    agent1_num_ctx:     int = Field(default=8192)
-    agent1_max_retries: int = Field(default=2)
+    # Single model used by all 4 agents
+    agent_model:       str   = Field(default="qwen2.5:7b-instruct-q4_K_M")
+    agent_timeout:     int   = Field(default=60)
+    agent_num_ctx:     int   = Field(default=4096)
+    agent_max_retries: int   = Field(default=2)
+    temperature:       float = Field(default=0.0)
+    top_p:             float = Field(default=1.0)
 
-    # Agent 2 — vision LLM (PDF→PNG → json2)
-    agent2_model:       str = Field(default="qwen2.5vl:7b-q4_K_M")
-    agent2_timeout:     int = Field(default=90)
-    agent2_num_ctx:     int = Field(default=8192)
-    agent2_max_retries: int = Field(default=1)
-
-    # Agent 3 — Validator (json1 + json2 → json3)
-    agent3_model:       str = Field(default="qwen2.5:7b-instruct-q4_K_M")
-    agent3_timeout:     int = Field(default=45)
-    agent3_num_ctx:     int = Field(default=4096)
-    agent3_max_retries: int = Field(default=2)
-
-    # Shared — all agents use the same temperature/top_p
-    temperature: float = Field(default=0.0)
-    top_p:       float = Field(default=1.0)
-
-    def get_agent1_config(self) -> AgentModelConfig:
+    def get_agent_config(self) -> AgentModelConfig:
         return AgentModelConfig(
-            base_url=self.ollama_base_url.rstrip("/"),
-            model=self.agent1_model, temperature=self.temperature,
-            top_p=self.top_p, num_ctx=self.agent1_num_ctx,
-            timeout=self.agent1_timeout, max_retries=self.agent1_max_retries,
+            base_url=    self.ollama_base_url.rstrip("/"),
+            model=       self.agent_model,
+            temperature= self.temperature,
+            top_p=       self.top_p,
+            num_ctx=     self.agent_num_ctx,
+            timeout=     self.agent_timeout,
+            max_retries= self.agent_max_retries,
         )
 
-    def get_agent2_config(self) -> AgentModelConfig:
-        return AgentModelConfig(
-            base_url=self.ollama_base_url.rstrip("/"),
-            model=self.agent2_model, temperature=self.temperature,
-            top_p=self.top_p, num_ctx=self.agent2_num_ctx,
-            timeout=self.agent2_timeout, max_retries=self.agent2_max_retries,
-        )
-
-    def get_agent3_config(self) -> AgentModelConfig:
-        return AgentModelConfig(
-            base_url=self.ollama_base_url.rstrip("/"),
-            model=self.agent3_model, temperature=self.temperature,
-            top_p=self.top_p, num_ctx=self.agent3_num_ctx,
-            timeout=self.agent3_timeout, max_retries=self.agent3_max_retries,
-        )
+    # Backward-compat aliases so any code still calling get_agent1_config() doesnt crash
+    def get_agent1_config(self) -> AgentModelConfig: return self.get_agent_config()
+    def get_agent2_config(self) -> AgentModelConfig: return self.get_agent_config()
+    def get_agent3_config(self) -> AgentModelConfig: return self.get_agent_config()
 
 
 # ---------------------------------------------------------------------------

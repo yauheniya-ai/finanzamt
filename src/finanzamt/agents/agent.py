@@ -4,14 +4,18 @@ finanzamt.agent
 Main entry point for receipt processing.
 
 Pipeline (see agents/pipeline.py for details):
-  1. OCR text extraction
+  1. OCR text extraction (Tesseract / Fritz)
   2. Duplicate detection (SHA-256 content hash)
-  3. Rule-based extractor  → hints
-  4. Agent 1 (text LLM)   → json1
-  5. Agent 2 (vision LLM) → json2
-  6. Agent 3 (Validator)  → json3  (merged, sanity-checked)
-  7. Build ReceiptData from best available result
+  3. Agent 1 — receipt number, date, category
+  4. Agent 2 — counterparty (vendor or client)
+  5. Agent 3 — amounts (total, VAT %, VAT amount)
+  6. Agent 4 — line items
+  7. Python merge of the 4 results → ReceiptData
   8. Validate + auto-save to SQLite
+
+All 4 agents use the same local LLM (configured via FINANZAMT_AGENT_MODEL).
+They run sequentially — not in parallel — for local model compatibility.
+Debug output is saved to ~/.finanzamt/debug/<receipt_id>/.
 """
 
 from __future__ import annotations
@@ -27,7 +31,7 @@ from .config import AgentsConfig
 from ..exceptions import InvalidReceiptError, OCRProcessingError
 from ..models import ExtractionResult, ReceiptData, _content_hash
 from ..ocr_processor import OCRProcessor
-from ..agents.config import Config
+from .config import Config
 from ..storage.sqlite import DEFAULT_DB_PATH, SQLiteRepository
 
 logger = logging.getLogger(__name__)
@@ -179,3 +183,4 @@ class FinanceAgent:
                 logger.info("PDF stored: %s", dest)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Could not store PDF copy: %s", exc)
+            

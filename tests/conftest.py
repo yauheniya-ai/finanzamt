@@ -11,7 +11,7 @@ from decimal import Decimal
 
 import pytest
 
-from finanzamt.config import Config
+from finanzamt.agents.config import Config, AgentsConfig
 from finanzamt.models import (
     Address, Counterparty, ExtractionResult,
     ReceiptCategory, ReceiptData, ReceiptItem, ReceiptType,
@@ -117,43 +117,34 @@ Vielen Dank für Ihren Einkauf!
 """.strip()
 
 
+# 4 separate agent responses matching the new pipeline
 @pytest.fixture
-def llm_json_response() -> dict:
-    """Valid LLM extraction response in the new prompt format."""
+def agent1_response() -> dict:
+    return {"receipt_number": "RE-2024-001", "receipt_date": "2024-03-15", "category": "material"}
+
+
+@pytest.fixture
+def agent2_response() -> dict:
     return {
-        "receipt_type": "purchase",
-        "counterparty_name": "Bürobedarf GmbH",
-        "counterparty_tax_number": None,
-        "counterparty_vat_id": "DE123456789",
-        "counterparty_address": {
-            "street": "Musterstraße",
-            "street_number": "1",
-            "postcode": "10115",
-            "city": "Berlin",
-            "country": "Germany",
-        },
-        "receipt_number": "RE-2024-001",
-        "receipt_date": "2024-03-15",
-        "total_amount": 21.36,
-        "vat_percentage": 19.0,
-        "vat_amount": 3.41,
-        "category": "material",
-        "items": [
-            {
-                "description": "Druckerpapier A4",
-                "quantity": 2,
-                "unit_price": 6.50,
-                "total_price": 13.00,
-                "category": "material",
-                "vat_rate": 19.0,
-            },
-            {
-                "description": "Kugelschreiber",
-                "quantity": 5,
-                "unit_price": 0.99,
-                "total_price": 4.95,
-                "category": "material",
-                "vat_rate": 19.0,
-            },
-        ],
+        "name": "Bürobedarf GmbH",
+        "vat_id": "DE123456789",
+        "tax_number": None,
+        "street": "Musterstraße",
+        "street_number": "1",
+        "postcode": "10115",
+        "city": "Berlin",
+        "country": "Germany",
     }
+
+
+@pytest.fixture
+def agent3_response() -> dict:
+    return {"total_amount": 21.36, "vat_percentage": 19.0, "vat_amount": 3.41}
+
+
+@pytest.fixture
+def agent4_response() -> dict:
+    return {"items": [
+        {"description": "Druckerpapier A4", "vat_rate": 19.0, "vat_amount": 2.47, "total_price": 13.00},
+        {"description": "Kugelschreiber",   "vat_rate": 19.0, "vat_amount": 0.94, "total_price": 4.95},
+    ]}

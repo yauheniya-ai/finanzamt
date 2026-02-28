@@ -1,6 +1,6 @@
 # Changelog
 
-## Version 0.3.3 (2026-02-27)
+## Version 0.4.0 (2026-03-01)
 
 UI and database improvements
 - Filtering by year, quarter, and month in the sidebar
