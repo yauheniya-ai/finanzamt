@@ -2,6 +2,11 @@
 
 ## Version 0.4.0 (2026-03-01)
 
+Agetic worklow improvement
+- Introduced a four-agent workflow with each agent specialized on extracting a small part of receipt
+- Save full model input and output in .finanzamt folder for detailed examination
+- Remove rule-based extraction
+
 UI and database improvements
 - Filtering by year, quarter, and month in the sidebar
 - Sidebar translation implemented

@@ -11,7 +11,7 @@ All configuration for finanzamt in one place.
 Override via environment variables or a .env file:
   FINANZAMT_OLLAMA_BASE_URL=http://localhost:11434
   FINANZAMT_AGENT1_MODEL=llama3.1
-  FINANZAMT_AGENT2_MODEL=qwen2.5vl:7b-q4_K_M
+  FINANZAMT_AGENT2_MODEL=qwen3:8b
   FINANZAMT_AGENT3_MODEL=qwen2.5:7b-instruct-q4_K_M
 """
 
