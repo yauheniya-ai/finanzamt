@@ -4,21 +4,24 @@ finanzamt.ui.api
 FastAPI backend for the finanzamt web UI.
 
 Every receipt/tax endpoint accepts an optional ``?db=`` query parameter
-(absolute path to a .db file). If omitted, DEFAULT_DB_PATH is used.
+(absolute path to a .db file). If omitted, the default project is used (~/.finanzamt/default/finanzamt.db).
 This lets the frontend switch between multiple databases without restarting.
 
 Endpoints
 ---------
-GET  /health
-GET  /config
-GET  /databases                    — list .db files under ~/.finanzamt/
-POST /receipts/upload
-GET  /receipts
-GET  /receipts/{id}
-GET  /receipts/{id}/pdf
-PATCH /receipts/{id}
+GET    /health
+GET    /config
+GET    /projects                   — list projects under ~/.finanzamt/
+POST   /projects                   — create a new project folder
+DELETE /projects/{name}            — delete a project (keeps PDFs optional)
+GET    /databases                  — legacy alias for /projects
+POST   /receipts/upload
+GET    /receipts
+GET    /receipts/{id}
+GET    /receipts/{id}/pdf
+PATCH  /receipts/{id}
 DELETE /receipts/{id}
-GET  /tax/ustva?quarter=1&year=2024
+GET    /tax/ustva?quarter=1&year=2024
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ from datetime import date
 from pathlib import Path
 from typing import Annotated, Optional
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile, status
+from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -40,7 +43,11 @@ try:
     from finanzamt.agents.agent import FinanceAgent
     from finanzamt.agents.config import Config
     from finanzamt.agents.prompts import RECEIPT_CATEGORIES
-    from finanzamt.storage.sqlite import DEFAULT_DB_PATH, SQLiteRepository
+    from finanzamt.storage.sqlite import SQLiteRepository
+    from finanzamt.storage.project import (
+        FINANZAMT_HOME, layout_from_db_path, list_projects,
+        resolve_project, validate_project_name, DB_FILENAME, DEFAULT_PROJECT,
+    )
     from finanzamt.tax.ustva import generate_ustva
     _LIB_AVAILABLE = True
     _cfg = Config()
@@ -56,9 +63,18 @@ except ImportError as _import_err:
         "software", "education", "travel", "utilities",
         "insurance", "taxes", "other",
     ]
-    DEFAULT_DB_PATH = Path.home() / ".finanzamt" / "finanzamt.db"
+    FINANZAMT_HOME     = Path.home() / ".finanzamt"
+    DB_FILENAME        = "finanzamt.db"
+    DEFAULT_PROJECT    = "default"
 
-FINANZAMT_DIR = DEFAULT_DB_PATH.parent
+    def list_projects():       return []      # type: ignore
+    def resolve_project(n=None): return None  # type: ignore
+    def validate_project_name(n): return None # type: ignore
+    def layout_from_db_path(p): return None   # type: ignore
+
+# Computed once at startup — never relies on sqlite.py's DEFAULT_DB_PATH
+_DEFAULT_LAYOUT = resolve_project(DEFAULT_PROJECT)
+_DEFAULT_DB     = _DEFAULT_LAYOUT.db_path
 
 ALLOWED_MIME_TYPES = {
     "image/jpeg", "image/png", "image/webp",
@@ -87,19 +103,29 @@ app.add_middleware(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _resolve_db(db: Optional[str]) -> Path:
-    """Return the DB path to use — explicit arg or default."""
+def _resolve_layout(db: Optional[str], project: Optional[str] = None):
+    """
+    Resolve a ProjectLayout from either an explicit db path or a project name.
+    Priority: explicit db path > project name > "default".
+    Always returns a proper ProjectLayout — never the old flat path.
+    """
     if db:
         p = Path(db)
-        if not p.suffix == ".db":
+        if p.suffix != ".db":
             raise HTTPException(status_code=400, detail="db must be a .db file path.")
-        return p
-    return DEFAULT_DB_PATH
+        return layout_from_db_path(p)
+    return resolve_project(project or DEFAULT_PROJECT)
+
+
+def _resolve_db(db: Optional[str]) -> Path:
+    """Backward-compat shim — returns the db_path from _resolve_layout."""
+    return _resolve_layout(db).db_path
 
 
 def _pdf_dir(db_path: Path) -> Path:
-    """PDFs live in a pdfs/ subfolder next to the .db file."""
-    return db_path.parent / "pdfs"
+    """PDFs live in pdfs/ inside the project root (sibling of finanzamt.db)."""
+    layout = layout_from_db_path(db_path)
+    return layout.pdfs_dir if layout else db_path.parent / "pdfs"
 
 
 def _repo(db_path: Path) -> SQLiteRepository:
@@ -111,11 +137,51 @@ def _repo(db_path: Path) -> SQLiteRepository:
     return SQLiteRepository(db_path=db_path)
 
 
+def _require_db(db_path: Path) -> None:
+    """Raise 404 if the database file doesn't exist yet.
+    Prevents SQLite from creating an empty file on read-only requests.
+    The db is created lazily on first write (upload).
+    """
+    if not db_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No database at {db_path}. Upload a receipt to initialise it.",
+        )
+
+
 def _receipt_to_response(r, db_path: Path) -> dict:
     d = r.to_dict()
     pdf_path = _pdf_dir(db_path) / f"{r.id}.pdf"
     d["pdf_url"] = f"/receipts/{r.id}/pdf" if pdf_path.exists() else None
     return d
+
+
+def _project_entry(layout, active_db: Optional[str] = None) -> dict:
+    """Serialise a ProjectLayout to a JSON-safe dict."""
+    receipt_count = 0
+    size_kb = 0.0
+    if layout.db_path.exists():
+        size_kb = round(layout.db_path.stat().st_size / 1024, 1)
+        if _LIB_AVAILABLE:
+            try:
+                with SQLiteRepository(db_path=layout.db_path) as repo:
+                    receipt_count = sum(1 for _ in repo.list_all())
+            except Exception:
+                pass
+    is_active = (
+        active_db == str(layout.db_path)
+        or (active_db is None and layout.is_default)
+    )
+    return {
+        "name":       layout.name,
+        "path":       str(layout.db_path),
+        "root":       str(layout.root),
+        "size_kb":    size_kb,
+        "receipts":   receipt_count,
+        "is_default": layout.is_default,
+        "is_active":  is_active,
+        "exists":     layout.db_path.exists(),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -127,8 +193,8 @@ def health():
     return {
         "status":            "ok",
         "library_available": _LIB_AVAILABLE,
-        "db_path":           str(DEFAULT_DB_PATH),
-        "db_exists":         DEFAULT_DB_PATH.exists(),
+        "db_path":           str(_DEFAULT_DB),
+        "db_exists":         _DEFAULT_DB.exists(),
     }
 
 
@@ -143,42 +209,90 @@ def get_config():
         "max_retries":     mc.max_retries,
         "request_timeout": mc.timeout,
         "categories":      RECEIPT_CATEGORIES,
-        "default_db":      str(DEFAULT_DB_PATH),
+        "default_db":      str(_DEFAULT_DB),
     }
 
 
-@app.get("/databases", tags=["meta"])
-def list_databases():
-    """
-    Scan ~/.finanzamt/ (recursively one level) for .db files and return
-    each one with its path, size, and receipt count.
-    """
-    results = []
-    if FINANZAMT_DIR.exists():
-        # Direct children first, then one level of subdirs
-        candidates = list(FINANZAMT_DIR.glob("*.db")) + list(FINANZAMT_DIR.glob("*/*.db"))
-        for db_file in sorted(candidates):
-            entry: dict = {
-                "name":     db_file.name,
-                "path":     str(db_file),
-                "dir":      str(db_file.parent),
-                "size_kb":  round(db_file.stat().st_size / 1024, 1) if db_file.exists() else 0,
-                "receipts": 0,
-                "is_default": db_file == DEFAULT_DB_PATH,
-            }
-            # Try to count receipts without crashing
-            if _LIB_AVAILABLE:
-                try:
-                    with SQLiteRepository(db_path=db_file) as repo:
-                        entry["receipts"] = sum(1 for _ in repo.list_all())
-                except Exception:
-                    pass
-            results.append(entry)
+# ---------------------------------------------------------------------------
+# Projects
+# ---------------------------------------------------------------------------
 
+@app.get("/projects", tags=["projects"])
+def list_projects_endpoint(active_db: Optional[str] = Query(default=None)):
+    """
+    List all projects under ~/.finanzamt/.
+    Each project is a subdirectory containing finanzamt.db.
+    """
+    projects = list_projects()
     return {
-        "databases": results,
-        "default":   str(DEFAULT_DB_PATH),
+        "projects":    [_project_entry(p, active_db) for p in projects],
+        "finanzamt_home": str(FINANZAMT_HOME),
+        "default_db":  str(_DEFAULT_DB),
     }
+
+
+@app.post("/projects", status_code=status.HTTP_201_CREATED, tags=["projects"])
+def create_project(body: dict = Body(...)):
+    """
+    Create a new project folder and initialise its SQLite database.
+    Body: { "name": "acme-gmbh-2025" }
+    """
+    name = (body.get("name") or "").strip().lower()
+    err  = validate_project_name(name)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+
+    layout = resolve_project(name)
+    if layout.db_path.exists():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Project '{name}' already exists.",
+        )
+
+    # Create directories and initialise DB (SQLite creates on first connect)
+    layout.create_dirs()
+    if _LIB_AVAILABLE:
+        try:
+            with SQLiteRepository(db_path=layout.db_path):
+                pass   # schema init happens in __init__
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"DB init failed: {exc}") from exc
+
+    return _project_entry(layout)
+
+
+@app.delete("/projects/{name}", status_code=status.HTTP_204_NO_CONTENT, tags=["projects"])
+def delete_project(name: str, keep_pdfs: bool = Query(default=True)):
+    """
+    Delete a project's database (and optionally its debug folder).
+    PDFs are kept by default (keep_pdfs=true).
+    The 'default' project cannot be deleted.
+    """
+    if name == "default":
+        raise HTTPException(status_code=403, detail="Cannot delete the default project.")
+
+    layout = resolve_project(name)
+    if not layout.db_path.exists():
+        raise HTTPException(status_code=404, detail=f"Project '{name}' not found.")
+
+    import shutil
+    layout.db_path.unlink(missing_ok=True)
+    if layout.debug_dir.exists():
+        shutil.rmtree(layout.debug_dir, ignore_errors=True)
+    if not keep_pdfs and layout.pdfs_dir.exists():
+        shutil.rmtree(layout.pdfs_dir, ignore_errors=True)
+    # Remove project root only if now empty
+    try:
+        layout.root.rmdir()
+    except OSError:
+        pass  # not empty — PDFs still there, leave it
+
+
+# Legacy alias — the frontend used /databases before the project refactor
+@app.get("/databases", tags=["projects"])
+def list_databases(active_db: Optional[str] = Query(default=None)):
+    """Legacy alias for GET /projects — kept for backwards compatibility."""
+    return list_projects_endpoint(active_db=active_db)
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +313,8 @@ async def upload_receipt(
     if not _LIB_AVAILABLE:
         raise HTTPException(status_code=503, detail="finanzamt library not installed.")
 
-    db_path = _resolve_db(db)
+    layout  = _resolve_layout(db)
+    db_path = layout.db_path
     suffix  = Path(file.filename or "receipt").suffix or ".pdf"
 
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -207,6 +322,9 @@ async def upload_receipt(
         tmp_path = Path(tmp.name)
 
     try:
+        # Pass db_path explicitly so FinanceAgent uses this exact layout.
+        # layout_from_db_path in agent.py will re-derive the project folder
+        # correctly from the path we resolved above.
         agent  = FinanceAgent(db_path=db_path)
         result = agent.process_receipt(tmp_path, receipt_type=receipt_type)
     finally:
@@ -234,6 +352,8 @@ def list_receipts(
     db:           Optional[str] = Query(default=None),
 ):
     db_path = _resolve_db(db)
+    if not db_path.exists():
+        return {"receipts": [], "total": 0}
     with _repo(db_path) as repo:
         if quarter and year:
             starts = {1: (1,1), 2: (4,1), 3: (7,1), 4: (10,1)}
@@ -261,6 +381,7 @@ def list_receipts(
 @app.get("/receipts/{receipt_id}", tags=["receipts"])
 def get_receipt(receipt_id: str, db: Optional[str] = Query(default=None)):
     db_path = _resolve_db(db)
+    _require_db(db_path)
     with _repo(db_path) as repo:
         receipt = repo.get(receipt_id)
     if not receipt:
@@ -312,6 +433,8 @@ def delete_receipt(receipt_id: str, db: Optional[str] = Query(default=None)):
 def list_verified_counterparties(db: Optional[str] = Query(default=None)):
     """Return all counterparties marked as verified."""
     db_path = _resolve_db(db)
+    if not db_path.exists():
+        return {"counterparties": []}
     with _repo(db_path) as repo:
         rows = repo.list_verified_counterparties()
     return {"counterparties": rows}
@@ -343,6 +466,8 @@ def get_ustva(
     ms, ds  = starts[quarter]; me, de = ends[quarter]
     start, end = date(year,ms,ds), date(year,me,de)
 
+    if not db_path.exists():
+        return generate_ustva([], start, end).to_dict()
     with _repo(db_path) as repo:
         receipts = list(repo.find_by_period(start, end))
 
@@ -370,4 +495,3 @@ else:
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_not_built(full_path: str):
         return {"error": "Frontend not built yet."}
-    

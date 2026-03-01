@@ -1,19 +1,34 @@
 # Changelog
 
+## Version 0.4.1 (2026-03-01)
+
+Multi-project storage and full German UI translation
+
+- **Multi-project storage** — receipts, PDFs, and debug output are now grouped under `~/.finanzamt/<project>/`; the default project lives at `~/.finanzamt/default/` (breaking change from the flat layout)
+- **Project selector** — create, switch, and delete named projects directly from the header without restarting the server
+- **German translation** — complete DE/EN localisation for Sidebar, PreviewPanel, Dashboard, and the project selector; language toggle in the header
+- **Dashboard period label** — the subtitle now shows the currently selected time period (e.g. Q1 2025, März 2025) instead of a receipt count
+- **Category and type translation** — receipt type (Ausgabe/Einnahme) and all category labels are now translated in the preview panel and category charts
+- **DB creation guard** — the database file is created only on first upload, not on the initial page load; prevents stray files in the wrong directory
+
+---
+
 ## Version 0.4.0 (2026-03-01)
 
-Agetic worklow improvement
-- Introduced a four-agent workflow with each agent specialized on extracting a small part of receipt
-- Save full model input and output in .finanzamt folder for detailed examination
-- Remove rule-based extraction
+Agentic workflow improvement
+
+- **Four-agent pipeline** — metadata, counterparty, amounts, and line items are each extracted by a dedicated agent with a short focused prompt, improving reliability on local models
+- **Debug output** — full prompt, raw model response, and parsed JSON are saved per agent to `~/.finanzamt/debug/<receipt_id>/` for inspection
+- **Rule-based extraction removed** — all structured data now comes from the LLM pipeline
 
 UI and database improvements
-- Filtering by year, quarter, and month in the sidebar
-- Sidebar translation implemented
-- Style enhancements to the sidebar
-- PreviewPanel allows verifying counterparties and reusing the verified info across receipts
-- Address toggle: full details are optionally shown/hidden
-- VAT splitting and items addition/deletion fully supported
+
+- **Period filter** — sidebar lets you filter receipts by year, quarter, or month; Dashboard reflects the active selection
+- **Sidebar translation** — DE/EN locale support added to the sidebar
+- **Counterparty verification** — mark a counterparty as verified in the preview panel and reuse it across receipts via the verified-counterparty picker
+- **Address toggle** — full address details in the preview panel are collapsed by default and expanded on demand
+- **VAT splitting** — receipts with multiple VAT rates can have each rate entered separately; splits are stored and displayed in the panel
+- **Line item editing** — add, edit, and delete line items directly in the preview panel with per-item VAT rate and amount fields
 
 ## Version 0.3.2 (2026-02-25)
 

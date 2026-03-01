@@ -15,7 +15,7 @@ Receipt ID
 The ``id`` is the SHA-256 hash of the normalised OCR text (computed by
 ``ReceiptData.__post_init__``).  Identical content → identical ID → duplicate.
 
-Default path: ``~/.finanzamt/finanzamt.db``
+Default path: ``~/.finanzamt/default/finanzamt.db``
 """
 
 from __future__ import annotations
@@ -29,11 +29,12 @@ from pathlib import Path
 from typing import Iterable
 
 from .base import ReceiptRepository
+from .project import resolve_project
 from ..models import (
     Address, Counterparty, ReceiptCategory, ReceiptData, ReceiptItem, ReceiptType,
 )
 
-DEFAULT_DB_PATH = Path.home() / ".finanzamt" / "finanzamt.db"
+DEFAULT_DB_PATH = resolve_project().db_path   # ~/.finanzamt/default/finanzamt.db
 _SCHEMA_VERSION = 1
 
 
@@ -647,4 +648,3 @@ class SQLiteRepository:
         receipt.category       = ReceiptCategory(row["category"] or "other")
         receipt.items          = items
         return receipt
-    

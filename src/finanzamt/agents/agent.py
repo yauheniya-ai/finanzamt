@@ -1,5 +1,5 @@
 """
-finanzamt.agent
+finanzamt.agents.agent
 ~~~~~~~~~~~~~~~
 Main entry point for receipt processing.
 
@@ -33,9 +33,12 @@ from ..models import ExtractionResult, ReceiptData, _content_hash
 from ..ocr_processor import OCRProcessor
 from .config import Config
 from ..storage.sqlite import DEFAULT_DB_PATH, SQLiteRepository
+from ..storage.project import resolve_project, layout_from_db_path, ProjectLayout
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+
+_UNSET = object()  # sentinel: distinguish "not passed" from None
 
 
 class FinanceAgent:
@@ -44,23 +47,37 @@ class FinanceAgent:
 
     Args:
         config:      Optional Config instance (reads .env by default).
-        db_path:     SQLite database path.
-                     Default: ~/.finanzamt/finanzamt.db
-                     Pass None to disable persistence.
-        agents_cfg:  Optional AgentsConfig — controls which models are used
-                     for each agent. Reads from env/dotenv by default.
+        project:     Project name — determines ~/.finanzamt/<project>/ layout.
+                     Default: "default" (or FINANZAMT_PROJECT env var).
+        db_path:     Explicit SQLite path — overrides project layout.
+                     Pass None to disable persistence entirely.
+        agents_cfg:  Optional AgentsConfig — controls which models are used.
     """
 
     def __init__(
         self,
         config:     Optional[Config] = None,
-        db_path:    Union[str, Path, None] = DEFAULT_DB_PATH,
+        project:    Optional[str] = None,
+        db_path:    Union[str, Path, None] = _UNSET,
         agents_cfg: Optional[AgentsConfig] = None,
     ) -> None:
-        self.config      = config or Config()
-        self.agents_cfg  = agents_cfg or AgentsConfig()
-        self.ocr         = OCRProcessor(self.config)
-        self._db_path: Optional[Path] = Path(db_path) if db_path else None
+        self.config     = config or Config()
+        self.agents_cfg = agents_cfg or AgentsConfig()
+        self.ocr        = OCRProcessor(self.config)
+
+        # Resolve project layout
+        if db_path is not _UNSET and db_path is not None:
+            # Explicit path takes precedence — infer layout from it
+            self._layout: Optional[ProjectLayout] = layout_from_db_path(Path(db_path))
+            self._db_path: Optional[Path] = Path(db_path)
+        elif db_path is None:
+            # Explicitly disabled — no persistence
+            self._layout = resolve_project(project) if project else None
+            self._db_path = None
+        else:
+            # Normal case — derive everything from project name
+            self._layout = resolve_project(project)
+            self._db_path = self._layout.db_path
 
     # ------------------------------------------------------------------
     # Public API
@@ -118,6 +135,7 @@ class FinanceAgent:
                 receipt_type=receipt_type,
                 cfg=self.agents_cfg,
                 receipt_id=content_id,
+                debug_root=self._layout.debug_dir if self._layout else None,
             )
 
             # 8 — Validate --------------------------------------------------
@@ -171,11 +189,15 @@ class FinanceAgent:
     # ------------------------------------------------------------------
 
     def _store_pdf(self, src: Path, receipt_id: str) -> None:
-        """Copy the original PDF to <db_dir>/pdfs/<id>.pdf."""
+        """Copy the original PDF to <project>/pdfs/<id>.pdf."""
         if not src.exists():
             return
         try:
-            pdf_dir = self._db_path.parent / "pdfs"
+            pdf_dir = (
+                self._layout.pdfs_dir
+                if self._layout
+                else self._db_path.parent / "pdfs"
+            )
             pdf_dir.mkdir(parents=True, exist_ok=True)
             dest = pdf_dir / f"{receipt_id}.pdf"
             if not dest.exists():
@@ -183,4 +205,3 @@ class FinanceAgent:
                 logger.info("PDF stored: %s", dest)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Could not store PDF copy: %s", exc)
-            
