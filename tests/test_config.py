@@ -139,18 +139,6 @@ class TestAgentsConfig:
     def test_returns_agent_model_config_dataclass(self):
         assert isinstance(AgentsConfig().get_agent_config(), AgentModelConfig)
 
-    def test_backward_compat_get_agent1_config(self):
-        cfg = AgentsConfig()
-        assert cfg.get_agent1_config().model == cfg.get_agent_config().model
-
-    def test_backward_compat_get_agent2_config(self):
-        cfg = AgentsConfig()
-        assert cfg.get_agent2_config().model == cfg.get_agent_config().model
-
-    def test_backward_compat_get_agent3_config(self):
-        cfg = AgentsConfig()
-        assert cfg.get_agent3_config().model == cfg.get_agent_config().model
-
     def test_env_var_overrides_agent_model(self):
         with patch.dict(os.environ, {"FINANZAMT_AGENT_MODEL": "llama3.1"}):
             assert AgentsConfig().agent_model == "llama3.1"

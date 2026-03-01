@@ -15,7 +15,6 @@ A Python library for extracting key information from receipts and preparing esse
 - **German Tax Alignment**: Category taxonomy and VAT handling aligned with German fiscal practice
 - **Local-First**: Everything works locally and completely offline
 - **Multi-Agent**: Uses several consequent models for intelligent structured data extraction
-- **Rule-based**: Heuristic extraction to enhance the LLM's output
 - **Web UI** Full web interface for uploading, extracting, and managing receipts
 
 ## Installation
@@ -52,11 +51,12 @@ Download the installer from https://github.com/UB-Mannheim/tesseract/wiki and ad
 # Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
 
-# Pull the default model
-ollama pull llama3.2
+# Pull a model
+ollama pull qwen2.5:7b-instruct-q4_K_M
 ```
 
-## Interactive UI
+## Quick Start
+### Interactive UI
 
 ```bash
 pip install finanzamt[ui]
@@ -68,7 +68,9 @@ finanzamt --ui
   <em>Interactive UI to upload receipts and manage tax statements</em>
 </p>
 
-## Quick Start
+### Python API
+
+#### Process Receipt
 
 ```python
 from finanzamt import FinanceAgent
@@ -91,7 +93,7 @@ else:
     print(f"Extraction failed: {result.error_message}")
 ```
 
-## Batch Processing
+### Batch Processing
 
 ```python
 from pathlib import Path
@@ -124,7 +126,7 @@ All settings have sensible defaults and can be overridden in three ways, in prio
 ```bash
 # .env
 FINANZAMT_OLLAMA_BASE_URL=http://localhost:11434
-FINANZAMT_MODEL=llama3.2
+FINANZAMT_MODEL=qwen2.5:7b-instruct-q4_K_M 
 FINANZAMT_TESSERACT_CMD=tesseract
 FINANZAMT_OCR_LANGUAGE=deu+eng
 FINANZAMT_OCR_PREPROCESS=true
@@ -133,7 +135,7 @@ FINANZAMT_MAX_RETRIES=3
 FINANZAMT_REQUEST_TIMEOUT=30
 FINANZAMT_TEMPERATURE=0.1
 FINANZAMT_TOP_P=0.9
-FINANZAMT_NUM_CTX=4096
+FINANZAMT_NUM_CTX=8192
 ```
 
 You can also pass a `Config` instance directly:
@@ -142,7 +144,7 @@ You can also pass a `Config` instance directly:
 from finanzamt import FinanceAgent, Config
 
 config = Config(
-    model="llama3.2",
+    model="qwen2.5:7b-instruct-q4_K_M",
     ocr_language="deu+eng",
     pdf_dpi=300,
     max_retries=3,
