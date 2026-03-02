@@ -81,6 +81,19 @@ ALLOWED_MIME_TYPES = {
     "image/tiff", "application/pdf",
 }
 
+# Maps file extension → MIME type for serving stored originals
+_EXT_MIME: dict[str, str] = {
+    ".pdf":  "application/pdf",
+    ".png":  "image/png",
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".tiff": "image/tiff",
+    ".tif":  "image/tiff",
+}
+# Extensions to probe when looking for a stored receipt file
+_STORED_EXTS = list(_EXT_MIME.keys())
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
@@ -149,10 +162,20 @@ def _require_db(db_path: Path) -> None:
         )
 
 
+def _find_stored_file(receipt_id: str, db_path: Path) -> Optional[Path]:
+    """Return the stored original file path regardless of extension, or None."""
+    base = _pdf_dir(db_path) / receipt_id
+    for ext in _STORED_EXTS:
+        p = base.with_suffix(ext)
+        if p.exists():
+            return p
+    return None
+
+
 def _receipt_to_response(r, db_path: Path) -> dict:
     d = r.to_dict()
-    pdf_path = _pdf_dir(db_path) / f"{r.id}.pdf"
-    d["pdf_url"] = f"/receipts/{r.id}/pdf" if pdf_path.exists() else None
+    stored = _find_stored_file(r.id, db_path)
+    d["pdf_url"] = f"/receipts/{r.id}/pdf" if stored else None
     return d
 
 
@@ -391,13 +414,14 @@ def get_receipt(receipt_id: str, db: Optional[str] = Query(default=None)):
 
 @app.get("/receipts/{receipt_id}/pdf", tags=["receipts"])
 def get_receipt_pdf(receipt_id: str, db: Optional[str] = Query(default=None)):
-    db_path  = _resolve_db(db)
-    pdf_path = _pdf_dir(db_path) / f"{receipt_id}.pdf"
-    if not pdf_path.exists():
-        raise HTTPException(status_code=404, detail="PDF not found.")
+    db_path = _resolve_db(db)
+    stored  = _find_stored_file(receipt_id, db_path)
+    if not stored:
+        raise HTTPException(status_code=404, detail="File not found.")
+    mime = _EXT_MIME.get(stored.suffix.lower(), "application/octet-stream")
     return FileResponse(
-        path=pdf_path,
-        media_type="application/pdf",
+        path=stored,
+        media_type=mime,
         headers={"Content-Disposition": "inline"},
     )
 

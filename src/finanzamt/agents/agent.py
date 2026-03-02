@@ -189,7 +189,7 @@ class FinanceAgent:
     # ------------------------------------------------------------------
 
     def _store_pdf(self, src: Path, receipt_id: str) -> None:
-        """Copy the original PDF to <project>/pdfs/<id>.pdf."""
+        """Copy the original file to <project>/pdfs/<id>.<ext>, preserving the source extension."""
         if not src.exists():
             return
         try:
@@ -199,9 +199,11 @@ class FinanceAgent:
                 else self._db_path.parent / "pdfs"
             )
             pdf_dir.mkdir(parents=True, exist_ok=True)
-            dest = pdf_dir / f"{receipt_id}.pdf"
+            # Preserve original extension so images stay as .png / .jpg etc.
+            ext  = src.suffix.lower() or ".pdf"
+            dest = pdf_dir / f"{receipt_id}{ext}"
             if not dest.exists():
                 shutil.copy2(src, dest)
-                logger.info("PDF stored: %s", dest)
+                logger.info("File stored: %s", dest)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Could not store PDF copy: %s", exc)
+            logger.warning("Could not store file copy: %s", exc)
