@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 0.4.3 (2026-03-01)
+
+Packaging fix:
+- Ensure the static folder (HTML, JS, CSS assets) is included in the PyPI package by adding MANIFEST.in and setting include-package-data = true in pyproject.toml. Now static assets are present after installation from PyPI.
+
 ## Version 0.4.2 (2026-03-01)
 
 Improvements of the PreviewPanel and Dashboard
