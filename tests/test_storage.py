@@ -35,8 +35,8 @@ def _make_counterparty(name: str = "Test GmbH") -> Counterparty:
     return Counterparty(
         name=name,
         address=Address(
-            street="Musterstraße", street_number="1",
-            postcode="10115", city="Berlin", country="Germany",
+            street_and_number="Musterstraße 1",
+            postcode="10115", city="Berlin", state="Berlin", country="Germany",
         ),
         vat_id=f"DE{abs(hash(name)) % 10**9:09d}",
     )

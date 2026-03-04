@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 0.4.4 (2026-03-01)
+
+Address schema refactor: unified street address and added state field
+- **Schema consolidation** — merged `street` and `street_number` into a single `street_and_number` field for cleaner UI and extraction
+- **State/province support** — added `state` field to address model for better international address handling (e.g. US states, German Bundesländer)
+- **Database migration** — schema maintains backward compatibility; existing `street`/`street_number` data is automatically migrated to `street_and_number` on first run
+- **Agent 2 prompt update** — extraction now expects `street_and_number` instead of separate fields; improved extraction rules documentation
+- **Frontend address editor** — simplified from 2 address fields to 1; street number is now combined with street name
+- **Localization updates** — locale keys updated: `field_street_and_number`, `field_state` added (EN: "Street", "State/Province"; DE: "Straße", "Bundesland")
+- **Address display** — `formatAddress()` now correctly handles combined street and optional state in address formatting
+
 ## Version 0.4.3 (2026-03-01)
 
 Packaging fix:

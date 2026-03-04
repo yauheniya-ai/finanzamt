@@ -91,7 +91,7 @@ class TestAgent2Prompt:
 
     def test_required_json_keys_present(self):
         p = build_agent2_prompt("text", "purchase")
-        for key in ("name", "vat_id", "tax_number", "street", "postcode", "city", "country"):
+        for key in ("name", "vat_id", "tax_number", "street_and_number", "postcode", "city", "state", "country"):
             assert key in p
 
     def test_receipt_text_injected(self):

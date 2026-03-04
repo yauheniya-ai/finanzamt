@@ -88,12 +88,26 @@ class SQLiteRepository:
             ("receipt_items",  "position",   "INTEGER"),
             ("receipt_items",  "vat_amount",  "TEXT"),
             ("counterparties", "verified",    "INTEGER DEFAULT 0"),
+            ("counterparties", "street_and_number", "TEXT"),
+            ("counterparties", "state",       "TEXT"),
         ]:
             try:
                 self._conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {typedef}")
                 self._conn.commit()
             except Exception:
                 pass  # column already exists — expected on all but first run
+        
+        # Migrate existing street/street_number data to street_and_number
+        try:
+            self._conn.execute("""
+                UPDATE counterparties 
+                SET street_and_number = TRIM(COALESCE(street, '') || ' ' || COALESCE(street_number, ''))
+                WHERE street_and_number IS NULL AND (street IS NOT NULL OR street_number IS NOT NULL)
+            """)
+            self._conn.commit()
+        except Exception:
+            pass  # migration already done or not needed
+        
         # vat_splits table (safe CREATE IF NOT EXISTS)
         self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS receipt_vat_splits (
@@ -111,17 +125,17 @@ class SQLiteRepository:
     def _create_tables(self) -> None:
         self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS counterparties (
-                id           TEXT PRIMARY KEY,
-                name         TEXT,
-                street       TEXT,
-                street_number TEXT,
-                postcode     TEXT,
-                city         TEXT,
-                country      TEXT,
-                tax_number   TEXT,
-                vat_id       TEXT,
-                verified     INTEGER NOT NULL DEFAULT 0,
-                created_at   TEXT NOT NULL
+                id                  TEXT PRIMARY KEY,
+                name                TEXT,
+                street_and_number   TEXT,
+                postcode            TEXT,
+                city                TEXT,
+                state               TEXT,
+                country             TEXT,
+                tax_number          TEXT,
+                vat_id              TEXT,
+                verified            INTEGER NOT NULL DEFAULT 0,
+                created_at          TEXT NOT NULL
             );
 
             CREATE INDEX IF NOT EXISTS idx_cp_name   ON counterparties (name COLLATE NOCASE);
@@ -212,13 +226,13 @@ class SQLiteRepository:
         """
         self._exec(
             """INSERT INTO counterparties
-               (id, name, street, street_number, postcode, city, country,
+               (id, name, street_and_number, postcode, city, state, country,
                 tax_number, vat_id, created_at)
                VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (
                 cp.id, cp.name,
-                cp.address.street, cp.address.street_number,
-                cp.address.postcode, cp.address.city, cp.address.country,
+                cp.address.street_and_number, cp.address.postcode, cp.address.city,
+                cp.address.state, cp.address.country,
                 cp.tax_number, cp.vat_id, self._now(),
             ),
         )
@@ -229,10 +243,10 @@ class SQLiteRepository:
             id=row["id"],
             name=row["name"],
             address=Address(
-                street=row["street"],
-                street_number=row["street_number"],
+                street_and_number=row["street_and_number"],
                 postcode=row["postcode"],
                 city=row["city"],
+                state=row["state"],
                 country=row["country"],
             ),
             tax_number=row["tax_number"],
@@ -346,7 +360,7 @@ class SQLiteRepository:
         row = self._conn.execute(
             """SELECT r.*, rc.raw_text,
                       c.id as cp_id, c.name as cp_name,
-                      c.street, c.street_number, c.postcode, c.city, c.country,
+                      c.street_and_number, c.postcode, c.city, c.state, c.country,
                       c.tax_number, c.vat_id, COALESCE(c.verified, 0) as verified
                FROM receipts r
                LEFT JOIN receipt_content rc ON rc.receipt_id = r.id
@@ -371,7 +385,7 @@ class SQLiteRepository:
         Counterparty fields (applied to the counterparty row owned by this
         receipt): ``counterparty_name``, ``vat_id``, ``tax_number``,
         and address sub-fields via an ``address`` dict with keys
-        ``street``, ``street_number``, ``postcode``, ``city``, ``country``.
+        ``street_and_number``, ``postcode``, ``city``, ``state``, ``country``.
 
         Returns True if the receipt row was found.
         """
@@ -384,7 +398,7 @@ class SQLiteRepository:
             "vat_id":            "vat_id",
             "tax_number":        "tax_number",
         }
-        ADDR_FIELDS = {"street", "street_number", "postcode", "city", "country"}
+        ADDR_FIELDS = {"street_and_number", "postcode", "city", "state", "country"}
 
         receipt_updates = {k: v for k, v in fields.items() if k in RECEIPT_MUTABLE}
 
@@ -433,16 +447,16 @@ class SQLiteRepository:
                 new_cp_id = str(uuid.uuid4())
                 self._exec(
                     """INSERT INTO counterparties
-                       (id, name, street, street_number, postcode, city, country,
+                       (id, name, street_and_number, postcode, city, state, country,
                         tax_number, vat_id, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         new_cp_id,
                         cp_updates.get("name"),
-                        cp_updates.get("street"),
-                        cp_updates.get("street_number"),
+                        cp_updates.get("street_and_number"),
                         cp_updates.get("postcode"),
                         cp_updates.get("city"),
+                        cp_updates.get("state"),
                         cp_updates.get("country"),
                         cp_updates.get("tax_number"),
                         cp_updates.get("vat_id"),
@@ -504,7 +518,7 @@ class SQLiteRepository:
     def list_verified_counterparties(self) -> list[dict]:
         """Return all counterparties where verified=1."""
         rows = self._conn.execute(
-            """SELECT id, name, street, street_number, postcode, city, country,
+            """SELECT id, name, street_and_number, postcode, city, state, country,
                       tax_number, vat_id, verified
                FROM counterparties WHERE verified = 1 ORDER BY name ASC"""
         ).fetchall()
@@ -516,11 +530,11 @@ class SQLiteRepository:
                 "vat_id":       r["vat_id"],
                 "verified":     bool(r["verified"]),
                 "address": {
-                    "street":        r["street"],
-                    "street_number": r["street_number"],
-                    "postcode":      r["postcode"],
-                    "city":          r["city"],
-                    "country":       r["country"],
+                    "street_and_number": r["street_and_number"],
+                    "postcode":          r["postcode"],
+                    "city":              r["city"],
+                    "state":             r["state"],
+                    "country":           r["country"],
                 },
             }
             for r in rows
@@ -565,7 +579,7 @@ class SQLiteRepository:
         sql = f"""
             SELECT r.*, rc.raw_text,
                    c.id as cp_id, c.name as cp_name,
-                   c.street, c.street_number, c.postcode, c.city, c.country,
+                   c.street_and_number, c.postcode, c.city, c.state, c.country,
                    c.tax_number, c.vat_id, COALESCE(c.verified, 0) as verified
             FROM receipts r
             LEFT JOIN receipt_content rc ON rc.receipt_id = r.id
@@ -584,10 +598,10 @@ class SQLiteRepository:
                 id=row["cp_id"],
                 name=row["cp_name"],
                 address=Address(
-                    street=row["street"],
-                    street_number=row["street_number"],
+                    street_and_number=row["street_and_number"],
                     postcode=row["postcode"],
                     city=row["city"],
+                    state=row["state"],
                     country=row["country"],
                 ),
                 tax_number=row["tax_number"],

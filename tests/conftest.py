@@ -48,10 +48,10 @@ def sample_counterparty() -> Counterparty:
     return Counterparty(
         name="Bürobedarf GmbH",
         address=Address(
-            street="Musterstraße",
-            street_number="1",
+            street_and_number="Musterstraße 1",
             postcode="10115",
             city="Berlin",
+            state="Berlin",
             country="Germany",
         ),
         vat_id="DE123456789",
@@ -129,10 +129,10 @@ def agent2_response() -> dict:
         "name": "Bürobedarf GmbH",
         "vat_id": "DE123456789",
         "tax_number": None,
-        "street": "Musterstraße",
-        "street_number": "1",
+        "street_and_number": "Musterstraße 1",
         "postcode": "10115",
         "city": "Berlin",
+        "state": "Berlin",
         "country": "Germany",
     }
 

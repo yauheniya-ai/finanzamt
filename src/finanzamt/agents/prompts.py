@@ -44,12 +44,13 @@ Return only JSON:"""
 AGENT2_TEMPLATE = """\
 Extract the {party} from the receipt text below.
 Return only this JSON, no other text:
-{{"name": null, "vat_id": null, "tax_number": null, "street": null, \
-"street_number": null, "postcode": null, "city": null, "country": null}}
+{{"name": null, "vat_id": null, "tax_number": null, "street_and_number": null, \
+"postcode": null, "city": null, "state": null, "country": null}}
 
-Rules: name = actual business/person name, never a field label ending with ":". \
-vat_id = EU format e.g. DE123456789. tax_number = German Steuernummer e.g. 123/456/78901. \
-street = street name only, street_number = building number separately.
+Rules: name = actual business/person name, \
+vat_id = USt-IdNr. e.g. DE123456789, \
+tax_number = Steuernummer e.g. 123/456/78901. \
+
 
 TEXT:
 {text}
