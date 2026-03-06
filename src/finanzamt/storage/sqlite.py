@@ -85,11 +85,12 @@ class SQLiteRepository:
     def _migrate(self) -> None:
         """Idempotent column/table additions for schema evolution."""
         for tbl, col, typedef in [
-            ("receipt_items",  "position",   "INTEGER"),
-            ("receipt_items",  "vat_amount",  "TEXT"),
-            ("counterparties", "verified",    "INTEGER DEFAULT 0"),
-            ("counterparties", "street_and_number", "TEXT"),
-            ("counterparties", "state",       "TEXT"),
+            ("receipt_items",      "position",   "INTEGER"),
+            ("receipt_items",      "vat_amount",  "TEXT"),
+            ("counterparties",     "verified",    "INTEGER DEFAULT 0"),
+            ("counterparties",     "street_and_number", "TEXT"),
+            ("counterparties",     "state",       "TEXT"),
+            ("receipt_vat_splits", "net_amount",  "TEXT"),
         ]:
             try:
                 self._conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {typedef}")
@@ -115,7 +116,8 @@ class SQLiteRepository:
                 receipt_id TEXT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
                 position   INTEGER,
                 vat_rate   TEXT,
-                vat_amount TEXT
+                vat_amount TEXT,
+                net_amount TEXT
             );
             CREATE INDEX IF NOT EXISTS idx_vat_splits_receipt
                 ON receipt_vat_splits (receipt_id);
@@ -178,7 +180,8 @@ class SQLiteRepository:
                 receipt_id   TEXT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
                 position     INTEGER,
                 vat_rate     TEXT,
-                vat_amount   TEXT
+                vat_amount   TEXT,
+                net_amount   TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_vat_splits_receipt ON receipt_vat_splits (receipt_id);
@@ -328,11 +331,12 @@ class SQLiteRepository:
                 import uuid as _uuid_vs
                 for pos, split in enumerate(receipt.vat_splits, start=1):
                     self._conn.execute(
-                        """INSERT INTO receipt_vat_splits (id, receipt_id, position, vat_rate, vat_amount)
-                           VALUES (?, ?, ?, ?, ?)""",
+                        """INSERT INTO receipt_vat_splits (id, receipt_id, position, vat_rate, vat_amount, net_amount)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
                         (str(_uuid_vs.uuid4()), receipt.id, split.get("position", pos),
                          str(split["vat_rate"]) if split.get("vat_rate") is not None else None,
-                         str(split["vat_amount"]) if split.get("vat_amount") is not None else None),
+                         str(split["vat_amount"]) if split.get("vat_amount") is not None else None,
+                         str(split["net_amount"]) if split.get("net_amount") is not None else None),
                     )
 
             # receipt_content
@@ -474,12 +478,13 @@ class SQLiteRepository:
             self._exec("DELETE FROM receipt_vat_splits WHERE receipt_id = ?", (receipt_id,))
             for pos, split in enumerate(fields["vat_splits"], start=1):
                 self._exec(
-                    """INSERT INTO receipt_vat_splits (id, receipt_id, position, vat_rate, vat_amount)
-                       VALUES (?, ?, ?, ?, ?)""",
+                    """INSERT INTO receipt_vat_splits (id, receipt_id, position, vat_rate, vat_amount, net_amount)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
                     (str(_uuid_vs2.uuid4()), receipt_id,
                      split.get("position", pos),
                      str(split["vat_rate"])    if split.get("vat_rate")    is not None else None,
-                     str(split["vat_amount"])  if split.get("vat_amount")  is not None else None),
+                     str(split["vat_amount"])  if split.get("vat_amount")  is not None else None,
+                     str(split["net_amount"])  if split.get("net_amount")  is not None else None),
                 )
 
         # Counterparty verified flag
@@ -644,6 +649,7 @@ class SQLiteRepository:
                 "position":   sr["position"],
                 "vat_rate":   float(self._dec(sr["vat_rate"]))   if sr["vat_rate"]   else None,
                 "vat_amount": float(self._dec(sr["vat_amount"])) if sr["vat_amount"] else None,
+                "net_amount": float(self._dec(sr["net_amount"])) if sr["net_amount"] else None,
             }
             for sr in split_rows
         ]
