@@ -9,6 +9,7 @@ Switch OCR engine to PaddleOCR with Tesseract fallback
 - **`FINANZAMT_OCR_TIMEOUT`** — new config field (int, seconds, default 60) controlling how long to wait for PaddleOCR before switching to Tesseract
 - **`FINANZAMT_TESSERACT_CMD`** — re-introduced so the Tesseract binary path can be customised when not on `PATH`
 - **Temp-file approach** — page pixmaps are saved to a temp PNG and passed by path to PaddleOCR; file is deleted in `finally`
+- **Event Streaming** – add event streaming to the terminal and the frontend
 
 ## Version 0.4.4 (2026-03-01)
 
