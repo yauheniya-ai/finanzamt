@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 0.4.5 (2026-03-05)
+
+Switch OCR engine to PaddleOCR with Tesseract fallback
+- **PaddleOCR** is the primary OCR engine; model is installed automatically via pip (`paddleocr`, `paddlepaddle`) and loaded once as a singleton
+- **Tesseract fallback** — PaddleOCR runs inside a `ThreadPoolExecutor` with a configurable timeout (`FINANZAMT_OCR_TIMEOUT`, default 60 s); on timeout or any failure the process falls back to Tesseract, preventing OOM kills
+- **German language model** — PaddleOCR uses `lang='german'`; Tesseract fallback uses `deu+eng`
+- **`FINANZAMT_OCR_TIMEOUT`** — new config field (int, seconds, default 60) controlling how long to wait for PaddleOCR before switching to Tesseract
+- **`FINANZAMT_TESSERACT_CMD`** — re-introduced so the Tesseract binary path can be customised when not on `PATH`
+- **Temp-file approach** — page pixmaps are saved to a temp PNG and passed by path to PaddleOCR (matching the proven `notes/main.py` approach); file is deleted in `finally`
+
 ## Version 0.4.4 (2026-03-01)
 
 Address schema refactor: unified street address and added state field

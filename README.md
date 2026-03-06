@@ -24,8 +24,7 @@ A Python library for extracting structured data from receipts and invoices and p
 - <img src="https://api.iconify.design/devicon:python.svg" width="16" height="16"> Python — package language
 - <img src="https://api.iconify.design/devicon:fastapi.svg" width="16" height="16"> FastAPI — backend for the web UI
 - <img src="https://api.iconify.design/devicon:react.svg" width="16" height="16"> React — interactive frontend
-- <img src="https://api.iconify.design/devicon:google.svg" width="16" height="16"> Tesseract — OCR for scanned PDFs
-- <img src="https://api.iconify.design/simple-icons:paddlepaddle.svg" width="16" height="16"> PaddleOCR — OCR for scanned PDFs
+- <img src="https://api.iconify.design/simple-icons:paddlepaddle.svg" width="16" height="16"> PaddleOCR — OCR for scanned PDFs (Tesseract was evaluated and PaddleOCR delivered superior recognition quality)
 - <img src="https://api.iconify.design/devicon:ollama.svg" width="16" height="16"> Ollama — local LLM for structured extraction
 - <img src="https://api.iconify.design/hugeicons:qwen.svg" width="16" height="16"> Qwen – laptop-compatible local LLMs for text and vision
 - <img src="https://api.iconify.design/devicon:sqlite.svg" width="16" height="16"> SQLite – local database for original receipts and extracted data
@@ -39,10 +38,10 @@ pip install finanzamt
 ### System Requirements
 
 - Python 3.10+
-- Tesseract OCR installed on your system
 - Ollama running locally with a supported model pulled
+- Tesseract OCR (optional — used as fallback when PaddleOCR times out)
 
-#### Tesseract OCR
+#### Tesseract OCR (optional fallback)
 
 **Ubuntu / Debian**
 ```bash
@@ -56,7 +55,7 @@ brew install tesseract tesseract-lang
 
 **Windows**
 
-Download the installer from https://github.com/UB-Mannheim/tesseract/wiki and add the installation directory to your `PATH`.
+Download the installer from https://github.com/UB-Mannheim/tesseract/wiki and add it to your `PATH`.
 
 #### Ollama
 
@@ -142,8 +141,9 @@ Settings are read in priority order from: environment variables → `.env` file 
 
 # OCR and general settings
 FINANZAMT_OLLAMA_BASE_URL=http://localhost:11434
+FINANZAMT_OCR_LANGUAGE=german
+FINANZAMT_OCR_TIMEOUT=60
 FINANZAMT_TESSERACT_CMD=tesseract
-FINANZAMT_OCR_LANGUAGE=deu+eng
 FINANZAMT_OCR_PREPROCESS=true
 FINANZAMT_PDF_DPI=300
 

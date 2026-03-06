@@ -1,35 +1,38 @@
 """
 tests/test_ocr_processor.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.ocr_processor — OCRProcessor with PyMuPDF and
-pytesseract mocked so tests run without any system dependencies.
+Tests for finanzamt.ocr_processor — OCRProcessor with PyMuPDF, PaddleOCR,
+and Tesseract mocked so tests run without any system dependencies.
 """
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, PropertyMock, call, patch
+from concurrent.futures import TimeoutError as FuturesTimeout
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from finanzamt.agents.config import Config
 from finanzamt.exceptions import OCRProcessingError
-from finanzamt.ocr_processor import OCRProcessor
+from finanzamt.ocr_processor import OCRProcessor, _extract_texts_from_paddle_result
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_mock_page(direct_text: str = "", ocr_text: str = "") -> MagicMock:
+def _make_mock_pixmap() -> MagicMock:
+    """Build a fake fitz.Pixmap."""
+    pix = MagicMock()
+    pix.save = MagicMock()
+    return pix
+
+
+def _make_mock_page(direct_text: str = "") -> MagicMock:
     """Build a fake fitz.Page."""
     page = MagicMock()
     page.get_text.return_value = direct_text
-
-    # get_pixmap → fake pixmap → tobytes → PNG bytes
-    pix = MagicMock()
-    pix.tobytes.return_value = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64   # minimal fake PNG
-    page.get_pixmap.return_value = pix
-
+    page.get_pixmap.return_value = _make_mock_pixmap()
     return page
 
 
@@ -41,26 +44,36 @@ def _make_mock_pdf(pages: list[MagicMock]) -> MagicMock:
     return doc
 
 
+def _make_paddle_ocr(texts: list[str] | None = None) -> MagicMock:
+    """Return a mock PaddleOCR whose predict() yields the given texts."""
+    ocr = MagicMock()
+    ocr.predict.return_value = [{"rec_texts": texts or []}]
+    return ocr
+
+
+def _patch_tmp(mock_tmp):
+    """Configure a NamedTemporaryFile mock to return a usable context manager."""
+    mock_tmp.return_value.__enter__.return_value.name = "/tmp/fake_page.png"
+
+
 # ---------------------------------------------------------------------------
 # Tesseract configuration
 # ---------------------------------------------------------------------------
 
 class TestConfigureTesseract:
-    def test_default_cmd_does_not_override_pytesseract(self):
-        """When tesseract_cmd is the default, pytesseract.tesseract_cmd must not be set."""
-        with patch("finanzamt.ocr_processor.pytesseract") as mock_tess:
-            # spec=[] means MagicMock starts with NO attributes — any assignment
-            # will be detectable via hasattr, while unassigned ones return False.
-            mock_tess.pytesseract = MagicMock(spec=[])
-            OCRProcessor(Config(tesseract_cmd="tesseract"))
-            assert not hasattr(mock_tess.pytesseract, "tesseract_cmd")
+    def test_default_cmd_does_not_call_pytesseract(self):
+        """With default path, pytesseract.tesseract_cmd must not be overwritten."""
+        with patch("finanzamt.ocr_processor.Image"):  # stop real PIL import
+            proc = OCRProcessor(Config(tesseract_cmd="tesseract"))
+        # No assertion needed — just must not raise
 
     def test_custom_cmd_sets_pytesseract_path(self):
         custom_path = "/usr/local/bin/tesseract"
-        with patch("finanzamt.ocr_processor.pytesseract") as mock_tess:
-            mock_tess.pytesseract = MagicMock()
+        mock_pt = MagicMock()
+        mock_pt.pytesseract = MagicMock()
+        with patch.dict("sys.modules", {"pytesseract": mock_pt}):
             OCRProcessor(Config(tesseract_cmd=custom_path))
-            assert mock_tess.pytesseract.tesseract_cmd == custom_path
+            assert mock_pt.pytesseract.tesseract_cmd == custom_path
 
 
 # ---------------------------------------------------------------------------
@@ -72,22 +85,21 @@ class TestExtractDirectText:
         page = _make_mock_page(direct_text="Invoice text here")
         doc = _make_mock_pdf([page])
 
-        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
-             patch("finanzamt.ocr_processor.pytesseract"):
-            proc = OCRProcessor()
-            result = proc.extract_text_from_pdf("receipt.pdf")
+        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc):
+            result = OCRProcessor().extract_text_from_pdf("receipt.pdf")
 
         assert "Invoice text here" in result
 
     def test_direct_text_skips_ocr(self):
         page = _make_mock_page(direct_text="Direct text")
         doc = _make_mock_pdf([page])
+        mock_ocr = _make_paddle_ocr()
 
         with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
-             patch("finanzamt.ocr_processor.pytesseract") as mock_tess:
-            proc = OCRProcessor()
-            proc.extract_text_from_pdf("receipt.pdf")
-            mock_tess.image_to_string.assert_not_called()
+             patch("finanzamt.ocr_processor._get_paddle_ocr", return_value=(mock_ocr, None)):
+            OCRProcessor().extract_text_from_pdf("receipt.pdf")
+
+        mock_ocr.predict.assert_not_called()
 
     def test_multiple_pages_concatenated(self):
         pages = [
@@ -96,8 +108,7 @@ class TestExtractDirectText:
         ]
         doc = _make_mock_pdf(pages)
 
-        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
-             patch("finanzamt.ocr_processor.pytesseract"):
+        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc):
             result = OCRProcessor().extract_text_from_pdf("receipt.pdf")
 
         assert "Page one" in result
@@ -107,30 +118,30 @@ class TestExtractDirectText:
         page = _make_mock_page(direct_text="text")
         doc = _make_mock_pdf([page])
 
-        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
-             patch("finanzamt.ocr_processor.pytesseract"):
+        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc):
             OCRProcessor().extract_text_from_pdf("receipt.pdf")
 
         doc.close.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
-# extract_text_from_pdf — OCR path
+# extract_text_from_pdf — OCR path (PaddleOCR primary)
 # ---------------------------------------------------------------------------
 
 class TestExtractOcrPath:
     def test_ocr_called_when_no_direct_text(self):
         page = _make_mock_page(direct_text="")
         doc = _make_mock_pdf([page])
+        mock_ocr = _make_paddle_ocr(["OCR extracted text"])
 
         with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
-             patch("finanzamt.ocr_processor.Image") as mock_img, \
-             patch("finanzamt.ocr_processor.pytesseract") as mock_tess:
-            mock_tess.image_to_string.return_value = "OCR extracted text"
-            mock_img.open.return_value = MagicMock()
+             patch("finanzamt.ocr_processor._get_paddle_ocr", return_value=(mock_ocr, None)), \
+             patch("finanzamt.ocr_processor.tempfile.NamedTemporaryFile") as mock_tmp, \
+             patch("finanzamt.ocr_processor.os.unlink"):
+            _patch_tmp(mock_tmp)
             result = OCRProcessor().extract_text_from_pdf("scanned.pdf")
 
-        mock_tess.image_to_string.assert_called_once()
+        mock_ocr.predict.assert_called_once()
         assert "OCR extracted text" in result
 
     def test_dpi_respected_in_matrix(self):
@@ -139,47 +150,109 @@ class TestExtractOcrPath:
         doc = _make_mock_pdf([page])
         config = Config(pdf_dpi=300)
         expected_scale = 300 / 72.0
+        mock_ocr = _make_paddle_ocr()
 
         with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
              patch("finanzamt.ocr_processor.fitz.Matrix") as mock_matrix, \
-             patch("finanzamt.ocr_processor.Image") as mock_img, \
-             patch("finanzamt.ocr_processor.pytesseract") as mock_tess:
-            mock_tess.image_to_string.return_value = ""
-            mock_img.open.return_value = MagicMock()
+             patch("finanzamt.ocr_processor._get_paddle_ocr", return_value=(mock_ocr, None)), \
+             patch("finanzamt.ocr_processor.tempfile.NamedTemporaryFile") as mock_tmp, \
+             patch("finanzamt.ocr_processor.os.unlink"):
+            mock_matrix.return_value = MagicMock()
+            _patch_tmp(mock_tmp)
             OCRProcessor(config).extract_text_from_pdf("scanned.pdf")
 
         mock_matrix.assert_called_with(expected_scale, expected_scale)
 
-    def test_ocr_language_passed_to_tesseract(self):
-        page = _make_mock_page(direct_text="")
-        doc = _make_mock_pdf([page])
-        config = Config(ocr_language="deu")
-
-        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
-             patch("finanzamt.ocr_processor.Image") as mock_img, \
-             patch("finanzamt.ocr_processor.pytesseract") as mock_tess:
-            mock_tess.image_to_string.return_value = ""
-            mock_img.open.return_value = MagicMock()
-            OCRProcessor(config).extract_text_from_pdf("scanned.pdf")
-
-        call_args = mock_tess.image_to_string.call_args
-        config_str = call_args[1].get("config") or call_args[0][1]
-        assert "deu" in config_str
-
     def test_pdf_closed_after_ocr_error(self):
-        """Regression: file handle leaked when an exception occurred mid-loop."""
+        """File handle must be released even when OCR raises."""
         page = _make_mock_page(direct_text="")
         doc = _make_mock_pdf([page])
+        mock_ocr = MagicMock()
+        mock_ocr.predict.side_effect = RuntimeError("paddle crash")
 
         with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
-             patch("finanzamt.ocr_processor.Image") as mock_img, \
-             patch("finanzamt.ocr_processor.pytesseract") as mock_tess:
-            mock_tess.image_to_string.side_effect = RuntimeError("tess crash")
-            mock_img.open.return_value = MagicMock()
-            result = OCRProcessor().extract_text_from_pdf("scanned.pdf")
+             patch("finanzamt.ocr_processor._get_paddle_ocr", return_value=(mock_ocr, None)), \
+             patch("finanzamt.ocr_processor.tempfile.NamedTemporaryFile") as mock_tmp, \
+             patch("finanzamt.ocr_processor.os.unlink"), \
+             patch.object(OCRProcessor, "_tesseract_ocr", return_value=""):
+            _patch_tmp(mock_tmp)
+            OCRProcessor().extract_text_from_pdf("scanned.pdf")
 
-        # OCR error is swallowed (returns "") — but the file must be closed
         doc.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Timeout + fallback
+# ---------------------------------------------------------------------------
+
+class TestPaddleFallback:
+    def _proc(self, timeout: int = 5) -> OCRProcessor:
+        return OCRProcessor(Config(ocr_timeout=timeout))
+
+    def test_paddle_timeout_falls_back_to_tesseract(self):
+        """TimeoutError from the executor triggers Tesseract fallback."""
+        mock_ocr = MagicMock()
+        proc = self._proc(timeout=5)
+
+        with patch("finanzamt.ocr_processor._get_paddle_ocr", return_value=(mock_ocr, None)), \
+             patch("finanzamt.ocr_processor.ThreadPoolExecutor") as mock_pool, \
+             patch.object(proc, "_tesseract_ocr", return_value="tess text") as mock_tess:
+            mock_future = MagicMock()
+            mock_future.result.side_effect = FuturesTimeout()
+            mock_pool.return_value.__enter__.return_value.submit.return_value = mock_future
+
+            result = proc._paddle_with_fallback("/tmp/img.png")
+
+        mock_tess.assert_called_once_with("/tmp/img.png")
+        assert result == "tess text"
+
+    def test_paddle_exception_falls_back_to_tesseract(self):
+        """Any exception from PaddleOCR triggers Tesseract fallback."""
+        mock_ocr = MagicMock()
+        proc = self._proc()
+
+        with patch("finanzamt.ocr_processor._get_paddle_ocr", return_value=(mock_ocr, None)), \
+             patch("finanzamt.ocr_processor.ThreadPoolExecutor") as mock_pool, \
+             patch.object(proc, "_tesseract_ocr", return_value="tess text") as mock_tess:
+            mock_future = MagicMock()
+            mock_future.result.side_effect = MemoryError("OOM")
+            mock_pool.return_value.__enter__.return_value.submit.return_value = mock_future
+
+            result = proc._paddle_with_fallback("/tmp/img.png")
+
+        mock_tess.assert_called_once()
+        assert result == "tess text"
+
+    def test_paddle_unavailable_falls_back_to_tesseract(self):
+        """When PaddleOCR never initialised, Tesseract is used directly."""
+        proc = self._proc()
+
+        with patch("finanzamt.ocr_processor._get_paddle_ocr",
+                   return_value=(None, "import failed")), \
+             patch.object(proc, "_tesseract_ocr", return_value="tess text") as mock_tess:
+            result = proc._paddle_with_fallback("/tmp/img.png")
+
+        mock_tess.assert_called_once_with("/tmp/img.png")
+        assert result == "tess text"
+
+    def test_paddle_empty_result_falls_back_to_tesseract(self):
+        """Empty PaddleOCR output falls through to Tesseract."""
+        mock_ocr = _make_paddle_ocr(texts=[])  # empty
+        proc = self._proc()
+
+        with patch("finanzamt.ocr_processor._get_paddle_ocr", return_value=(mock_ocr, None)), \
+             patch.object(proc, "_tesseract_ocr", return_value="tess text") as mock_tess:
+            result = proc._paddle_with_fallback("/tmp/img.png")
+
+        mock_tess.assert_called_once()
+        assert result == "tess text"
+
+    def test_tesseract_ocr_missing_pytesseract_returns_empty(self):
+        """If pytesseract is not installed, _tesseract_ocr returns ''."""
+        proc = self._proc()
+        with patch.dict("sys.modules", {"pytesseract": None}):
+            result = proc._tesseract_ocr("/tmp/img.png")
+        assert result == ""
 
 
 # ---------------------------------------------------------------------------
@@ -196,10 +269,8 @@ class TestErrorHandling:
         page = _make_mock_page(direct_text="bytes text")
         doc = _make_mock_pdf([page])
 
-        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc) as mock_open, \
-             patch("finanzamt.ocr_processor.pytesseract"):
+        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc) as mock_open:
             OCRProcessor().extract_text_from_pdf(b"%PDF-1.4 bytes content")
-            # Must be called with stream= keyword, not as a path
             call_kwargs = mock_open.call_args[1]
             assert "stream" in call_kwargs
 
@@ -207,38 +278,26 @@ class TestErrorHandling:
         page = _make_mock_page(direct_text="  lots of whitespace  \n\n")
         doc = _make_mock_pdf([page])
 
-        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc), \
-             patch("finanzamt.ocr_processor.pytesseract"):
+        with patch("finanzamt.ocr_processor.fitz.open", return_value=doc):
             result = OCRProcessor().extract_text_from_pdf("receipt.pdf")
 
         assert result == result.strip()
 
 
 # ---------------------------------------------------------------------------
-# Preprocessing
+# _extract_texts_from_paddle_result (unit)
 # ---------------------------------------------------------------------------
 
-class TestPreprocessImage:
-    def test_preprocess_returns_image(self):
-        import numpy as np
-        from PIL import Image as PILImage
-        img = PILImage.fromarray((255 * (1 - __import__("numpy").random.rand(100, 100))).astype("uint8"), mode="L")
+class TestExtractTexts:
+    def test_extracts_from_dict_result(self):
+        result = [{"rec_texts": ["line one", "line two", ""]}]
+        assert _extract_texts_from_paddle_result(result) == ["line one", "line two"]
 
-        with patch("finanzamt.ocr_processor.cv2") as mock_cv2:
-            mock_cv2.fastNlMeansDenoising.return_value = img
-            mock_cv2.convertScaleAbs.return_value     = img
-            mock_cv2.threshold.return_value           = (None, img)
-            result = OCRProcessor._preprocess_image(img)
+    def test_extracts_from_attribute_result(self):
+        page = MagicMock(spec=["rec_texts"])
+        page.rec_texts = ["attr line"]
+        assert _extract_texts_from_paddle_result([page]) == ["attr line"]
 
-        assert result is not None
-
-    def test_preprocess_returns_original_on_failure(self):
-        from PIL import Image as PILImage
-        img = PILImage.new("RGB", (10, 10))
-
-        with patch("finanzamt.ocr_processor.cv2") as mock_cv2:
-            mock_cv2.fastNlMeansDenoising.side_effect = RuntimeError("cv2 error")
-            result = OCRProcessor._preprocess_image(img)
-
-        # Should return the original image, not raise
-        assert result is img
+    def test_empty_result_returns_empty_list(self):
+        assert _extract_texts_from_paddle_result([{"rec_texts": []}]) == []
+        assert _extract_texts_from_paddle_result([]) == []

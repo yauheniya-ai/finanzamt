@@ -4,7 +4,7 @@ finanzamt.agents.agent
 Main entry point for receipt processing.
 
 Pipeline (see agents/pipeline.py for details):
-  1. OCR text extraction (Tesseract / Fritz)
+  1. OCR text extraction (PaddleOCR)
   2. Duplicate detection (SHA-256 content hash)
   3. Agent 1 — receipt number, date, category
   4. Agent 2 — counterparty (vendor or client)

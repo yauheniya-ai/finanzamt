@@ -3,7 +3,7 @@ finanzamt.agents.config
 ~~~~~~~~~~~~~~~~~~~~~~~
 All configuration for finanzamt in one place.
 
-  Config           — OCR, Tesseract, general settings (env prefix: FINANZAMT_)
+  Config           — OCR, general settings (env prefix: FINANZAMT_)
   AgentsConfig     — LLM model settings for the 4-agent extraction pipeline
   ModelConfig      — immutable snapshot returned by Config.get_model_config()
   AgentModelConfig — immutable snapshot returned by AgentsConfig.get_agent_config()
@@ -57,7 +57,7 @@ class AgentModelConfig:
 
 
 # ---------------------------------------------------------------------------
-# General config (OCR, Tesseract, PDF)
+# General config (OCR, PDF)
 # ---------------------------------------------------------------------------
 
 class Config(BaseSettings):
@@ -75,10 +75,11 @@ class Config(BaseSettings):
     top_p:           float = Field(default=0.9, ge=0.0, le=1.0)
     num_ctx:         int   = Field(default=8192, ge=512)
 
-    # OCR — Tesseract
+    # OCR
     tesseract_cmd:  str  = Field(default="tesseract")
-    ocr_language:   str  = Field(default="deu+eng")
+    ocr_language:   str  = Field(default="german")
     ocr_preprocess: bool = Field(default=True)
+    ocr_timeout:    int  = Field(default=60, ge=5)  # PaddleOCR timeout in seconds
 
     # PDF rendering
     pdf_dpi: int = Field(default=300, ge=72, le=1200)
@@ -97,7 +98,7 @@ class Config(BaseSettings):
     def _validate_language(cls, v: str) -> str:
         codes = [c.strip() for c in v.split("+") if c.strip()]
         if not codes:
-            raise ValueError("ocr_language must contain at least one Tesseract language code.")
+            raise ValueError("ocr_language must not be empty.")
         return "+".join(codes)
 
     @model_validator(mode="after")

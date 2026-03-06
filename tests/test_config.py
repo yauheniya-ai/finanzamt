@@ -25,7 +25,10 @@ class TestConfigDefaults:
         assert Config().model == "llama3.2"
 
     def test_ocr_language_default(self):
-        assert Config().ocr_language == "deu+eng"
+        assert Config().ocr_language == "german"
+
+    def test_ocr_timeout_default(self):
+        assert Config().ocr_timeout == 60
 
     def test_ocr_preprocess_default(self):
         assert Config().ocr_preprocess is True
