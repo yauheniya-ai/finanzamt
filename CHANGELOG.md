@@ -1,7 +1,14 @@
 # Changelog
 
-## Version 0.4.5 (2026-03-05)
+## Version 0.4.6 (2026-03-06)
 
+VAT split net amount support
+- **`net_amount` field** — added `net_amount` column to `receipt_vat_splits` table; existing databases are migrated automatically on first run
+- **Display** — each VAT split row now shows all three values: MwSt. € · MwSt. % · Netto € (tax amount, rate, net amount)
+- **Editing** — split rows in edit mode have three equal-width labelled inputs in the same order: MwSt. €, MwSt. %, Netto €
+- **Persistence** — `net_amount` is saved and restored correctly on update and re-load## Version 0.4.5 (2026-03-06)
+
+## Version 0.4.5 (2026-03-06)
 Switch OCR engine to PaddleOCR with Tesseract fallback
 - **PaddleOCR** is the primary OCR engine; model is installed automatically via pip (`paddleocr`, `paddlepaddle`) and loaded once as a singleton
 - **Tesseract fallback** — PaddleOCR runs inside a `ThreadPoolExecutor` with a configurable timeout (`FINANZAMT_OCR_TIMEOUT`, default 60 s); on timeout or any failure the process falls back to Tesseract, preventing OOM kills
