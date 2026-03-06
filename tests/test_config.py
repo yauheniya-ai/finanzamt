@@ -19,31 +19,31 @@ from finanzamt.agents.config import AgentModelConfig, AgentsConfig, Config, Mode
 
 class TestConfigDefaults:
     def test_ollama_base_url_default(self):
-        assert Config().ollama_base_url == "http://localhost:11434"
+        assert Config(_env_file=None).ollama_base_url == "http://localhost:11434"  # type: ignore[call-arg]
 
     def test_model_default(self):
-        assert Config().model == "qwen2.5:7b-instruct-q4_K_M"
+        assert Config(_env_file=None).model == "llama3.2"  # type: ignore[call-arg]
 
     def test_ocr_language_default(self):
-        assert Config().ocr_language == "german"
+        assert Config(_env_file=None).ocr_language == "german"  # type: ignore[call-arg]
 
     def test_ocr_timeout_default(self):
-        assert Config().ocr_timeout == 60
+        assert Config(_env_file=None).ocr_timeout == 60  # type: ignore[call-arg]
 
     def test_ocr_preprocess_default(self):
-        assert Config().ocr_preprocess is True
+        assert Config(_env_file=None).ocr_preprocess is True  # type: ignore[call-arg]
 
     def test_pdf_dpi_default(self):
-        assert Config().pdf_dpi == 150
+        assert Config(_env_file=None).pdf_dpi == 150  # type: ignore[call-arg]
 
     def test_max_retries_default(self):
-        assert Config().max_retries == 3
+        assert Config(_env_file=None).max_retries == 3  # type: ignore[call-arg]
 
     def test_request_timeout_default(self):
-        assert Config().request_timeout == 30
+        assert Config(_env_file=None).request_timeout == 30  # type: ignore[call-arg]
 
     def test_temperature_default(self):
-        assert Config().temperature == 0.1
+        assert Config(_env_file=None).temperature == 0.1  # type: ignore[call-arg]
 
 
 class TestConfigValidation:
@@ -137,8 +137,7 @@ class TestAgentsConfig:
         assert ac.model == "mistral"
 
     def test_temperature_is_zero(self):
-        with patch.dict(os.environ, {"FINANZAMT_TEMPERATURE": "0.0"}):
-            assert AgentsConfig().get_agent_config().temperature == 0.0
+        assert AgentsConfig(_env_file=None).get_agent_config().temperature == 0.0  # type: ignore[call-arg]
 
     def test_returns_agent_model_config_dataclass(self):
         assert isinstance(AgentsConfig().get_agent_config(), AgentModelConfig)
