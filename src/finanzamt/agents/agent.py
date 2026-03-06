@@ -102,6 +102,9 @@ class FinanceAgent:
 
         try:
             # 1 — OCR -------------------------------------------------------
+            name = Path(pdf_path).name if isinstance(pdf_path, (str, Path)) else "<bytes>"
+            print(f"[finanzamt] {name}", flush=True)
+            print(f"  {time.strftime('[%H:%M:%S]')} → PyMuPDF ...", flush=True)
             raw_text = self.ocr.extract_text_from_pdf(pdf_path)
             if not raw_text.strip():
                 return ExtractionResult(
@@ -126,6 +129,7 @@ class FinanceAgent:
                         )
 
             # 3-7 — Multi-agent extraction ----------------------------------
+            print(f"  {time.strftime('[%H:%M:%S]')} → Extraction pipeline ...", flush=True)
             pdf_file_path: Optional[Path] = (
                 Path(pdf_path) if isinstance(pdf_path, (str, Path)) else None
             )

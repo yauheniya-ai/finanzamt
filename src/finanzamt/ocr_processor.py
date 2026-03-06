@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FuturesTimeout
 from pathlib import Path
 from typing import Optional, Union
@@ -24,6 +25,10 @@ from .exceptions import OCRProcessingError
 os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
 
 logger = logging.getLogger(__name__)
+
+
+def _ts() -> str:
+    return time.strftime("[%H:%M:%S]")
 
 # ---------------------------------------------------------------------------
 # PaddleOCR singleton — model loads once, reused for all receipts
@@ -127,9 +132,11 @@ class OCRProcessor:
                 direct_text = page.get_text().strip()
                 if direct_text:
                     # Embedded text layer — no OCR needed
+                    print(f"  {_ts()} → PDF text layer (page {page_num + 1})", flush=True)
                     pages_text.append(direct_text)
                 else:
                     # Scanned / image page — run OCR
+                    print(f"  {_ts()} → OCR page {page_num + 1}/{pdf_doc.page_count} ...", flush=True)
                     ocr_text = self._ocr_page(page)
                     pages_text.append(ocr_text)
         finally:
@@ -181,6 +188,7 @@ class OCRProcessor:
         ocr, error = _get_paddle_ocr()
         if not error:
             try:
+                print(f"    {_ts()} → PaddleOCR ...", flush=True)
                 with ThreadPoolExecutor(max_workers=1) as executor:
                     future = executor.submit(ocr.predict, image_path)
                     result = future.result(timeout=self.config.ocr_timeout)
@@ -190,22 +198,25 @@ class OCRProcessor:
                     return "\n".join(lines)
                 logger.debug("PaddleOCR returned no text, trying Tesseract")
             except _FuturesTimeout:
+                print(f"    {_ts()} → PaddleOCR timed out ({self.config.ocr_timeout}s) — Tesseract fallback", flush=True)
                 logger.warning(
                     "PaddleOCR timed out after %ds — falling back to Tesseract",
                     self.config.ocr_timeout,
                 )
             except Exception as exc:
+                print(f"    {_ts()} → PaddleOCR failed ({type(exc).__name__}) — Tesseract fallback", flush=True)
                 logger.warning(
-                    "PaddleOCR failed (%s: %s) — falling back to Tesseract",
                     type(exc).__name__, exc,
                 )
         else:
+            print(f"    {_ts()} → PaddleOCR unavailable — Tesseract fallback", flush=True)
             logger.warning("PaddleOCR unavailable (%s) — using Tesseract", error)
 
         return self._tesseract_ocr(image_path)
 
     def _tesseract_ocr(self, image_path: str) -> str:
         """Run Tesseract on the given image file. Returns '' if unavailable."""
+        print(f"      {_ts()} → Tesseract ...", flush=True)
         try:
             import pytesseract
         except ImportError:

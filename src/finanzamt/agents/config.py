@@ -82,7 +82,7 @@ class Config(BaseSettings):
     ocr_timeout:    int  = Field(default=60, ge=5)  # PaddleOCR timeout in seconds
 
     # PDF rendering
-    pdf_dpi: int = Field(default=300, ge=72, le=1200)
+    pdf_dpi: int = Field(default=150, ge=72, le=1200)
 
     # HTTP / retry
     max_retries:     int = Field(default=3, ge=0, le=10)
