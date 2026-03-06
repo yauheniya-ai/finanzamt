@@ -206,9 +206,7 @@ class OCRProcessor:
                 )
             except Exception as exc:
                 _progress.emit(f"    {_ts()} → PaddleOCR failed ({type(exc).__name__}) — Tesseract fallback")
-                logger.warning(
-                    type(exc).__name__, exc,
-                )
+                logger.warning("PaddleOCR error: %s: %s", type(exc).__name__, exc)
         else:
             _progress.emit(f"    {_ts()} → PaddleOCR unavailable — Tesseract fallback")
             logger.warning("PaddleOCR unavailable (%s) — using Tesseract", error)

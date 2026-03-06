@@ -22,7 +22,7 @@ class TestConfigDefaults:
         assert Config().ollama_base_url == "http://localhost:11434"
 
     def test_model_default(self):
-        assert Config().model == "llama3.2"
+        assert Config().model == "qwen2.5:7b-instruct-q4_K_M"
 
     def test_ocr_language_default(self):
         assert Config().ocr_language == "german"
@@ -34,7 +34,7 @@ class TestConfigDefaults:
         assert Config().ocr_preprocess is True
 
     def test_pdf_dpi_default(self):
-        assert Config().pdf_dpi == 300
+        assert Config().pdf_dpi == 150
 
     def test_max_retries_default(self):
         assert Config().max_retries == 3
@@ -137,7 +137,8 @@ class TestAgentsConfig:
         assert ac.model == "mistral"
 
     def test_temperature_is_zero(self):
-        assert AgentsConfig().get_agent_config().temperature == 0.0
+        with patch.dict(os.environ, {"FINANZAMT_TEMPERATURE": "0.0"}):
+            assert AgentsConfig().get_agent_config().temperature == 0.0
 
     def test_returns_agent_model_config_dataclass(self):
         assert isinstance(AgentsConfig().get_agent_config(), AgentModelConfig)
