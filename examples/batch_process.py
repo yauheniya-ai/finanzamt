@@ -29,9 +29,9 @@ logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
 )
 
-from finanzamt import FinanceAgent
-from finanzamt.models import ExtractionResult
-from finanzamt.storage.sqlite import DEFAULT_DB_PATH
+from finamt import FinanceAgent
+from finamt.models import ExtractionResult
+from finamt.storage.sqlite import DEFAULT_DB_PATH
 
 
 def process_receipts(
@@ -159,7 +159,7 @@ def generate_report(
     if no_db:
         print(f"  DB persistence : disabled")
     else:
-        print(f"  Saved to DB    : {db_path or '~/.finanzamt/finanzamt.db'}")
+        print(f"  Saved to DB    : {db_path or '~/.finamt/finamt.db'}")
     print(f"{hdiv}\n")
 
 
@@ -173,7 +173,7 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Also write JSON result files here (optional).")
     p.add_argument("--type",       default="purchase",         choices=["purchase", "sale"])
     p.add_argument("--db",         default=None,               metavar="FILE",
-                   help="SQLite DB path (default: ~/.finanzamt/finanzamt.db).")
+                   help="SQLite DB path (default: ~/.finamt/finamt.db).")
     p.add_argument("--no-db",      action="store_true",
                    help="Disable DB persistence.")
     p.add_argument("--verbose", "-v", action="store_true")

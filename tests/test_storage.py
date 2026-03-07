@@ -1,8 +1,8 @@
 """
 tests/test_storage.py
 ~~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.storage.sqlite — SQLiteRepository.
-All tests use tmp_path, never touching ~/.finanzamt/finanzamt.db.
+Tests for finamt.storage.sqlite — SQLiteRepository.
+All tests use tmp_path, never touching ~/.finamt/finamt.db.
 """
 
 from __future__ import annotations
@@ -13,11 +13,11 @@ from decimal import Decimal
 
 import pytest
 
-from finanzamt.models import (
+from finamt.models import (
     Address, Counterparty, ReceiptCategory, ReceiptData, ReceiptItem, ReceiptType,
 )
-from finanzamt.storage.base import ReceiptRepository
-from finanzamt.storage.sqlite import SQLiteRepository
+from finamt.storage.base import ReceiptRepository
+from finamt.storage.sqlite import SQLiteRepository
 
 
 # ---------------------------------------------------------------------------

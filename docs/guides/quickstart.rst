@@ -6,7 +6,7 @@ Process a single receipt
 
 .. code-block:: python
 
-   from finanzamt import FinanceAgent
+   from finamt import FinanceAgent
 
    agent = FinanceAgent()
    result = agent.process_receipt("invoice.pdf")
@@ -35,7 +35,7 @@ Batch processing
 .. code-block:: python
 
    import glob
-   from finanzamt import FinanceAgent
+   from finamt import FinanceAgent
 
    agent = FinanceAgent()
 
@@ -53,7 +53,7 @@ Start the local web interface:
 
 .. code-block:: bash
 
-   finanzamt --ui
+   finamt --ui
 
 Then open ``http://localhost:8000`` in your browser.  The UI lets you upload
 receipts, review and edit extracted data, manage counterparties, and export
@@ -65,7 +65,7 @@ Command-line interface
 .. code-block:: bash
 
    # Process a single file and print JSON output
-   finanzamt process invoice.pdf
+   finamt process invoice.pdf
 
    # Show help
-   finanzamt --help
+   finamt --help

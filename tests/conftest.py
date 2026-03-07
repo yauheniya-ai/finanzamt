@@ -1,7 +1,7 @@
 """
 tests/conftest.py
 ~~~~~~~~~~~~~~~~~
-Shared pytest fixtures for the finanzamt test suite.
+Shared pytest fixtures for the finamt test suite.
 """
 
 from __future__ import annotations
@@ -11,8 +11,8 @@ from decimal import Decimal
 
 import pytest
 
-from finanzamt.agents.config import Config, AgentsConfig
-from finanzamt.models import (
+from finamt.agents.config import Config, AgentsConfig
+from finamt.models import (
     Address, Counterparty, ExtractionResult,
     ReceiptCategory, ReceiptData, ReceiptItem, ReceiptType,
 )

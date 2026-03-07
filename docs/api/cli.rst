@@ -1,13 +1,13 @@
 CLI
 ===
 
-Command-line interface provided by the ``finanzamt`` entry-point.
+Command-line interface provided by the ``finamt`` entry-point.
 
 .. code-block:: bash
 
-   finanzamt --help
+   finamt --help
 
-.. automodule:: finanzamt.cli
+.. automodule:: finamt.cli
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,7 +1,7 @@
 """
 tests/test_models.py
 ~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.models — ReceiptCategory, ReceiptItem, ReceiptData,
+Tests for finamt.models — ReceiptCategory, ReceiptItem, ReceiptData,
 ExtractionResult, including validation, serialisation and derived properties.
 """
 
@@ -13,9 +13,9 @@ from decimal import Decimal
 
 import pytest
 
-from finanzamt.models import ExtractionResult, ReceiptCategory, ReceiptData, ReceiptItem
-from finanzamt.models import Address, Counterparty, ReceiptType
-from finanzamt.agents.prompts import RECEIPT_CATEGORIES
+from finamt.models import ExtractionResult, ReceiptCategory, ReceiptData, ReceiptItem
+from finamt.models import Address, Counterparty, ReceiptType
+from finamt.agents.prompts import RECEIPT_CATEGORIES
 
 
 class TestReceiptCategory:

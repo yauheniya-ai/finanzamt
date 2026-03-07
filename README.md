@@ -1,18 +1,18 @@
-# finanzamt
+# finamt
 
 <div align="center">
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PyPI version](https://img.shields.io/pypi/v/finanzamt?color=blue&label=PyPI)](https://pypi.org/project/finanzamt/)
-[![Tests](https://github.com/yauheniya-ai/finanzamt/actions/workflows/tests.yml/badge.svg)](https://github.com/yauheniya-ai/finanzamt/actions/workflows/tests.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/yauheniya-ai/d09f6edc7b1928aeea1fbde834a6080b/raw/coverage.json)](https://github.com/yauheniya-ai/finanzamt/actions/workflows/tests.yml)
-[![GitHub last commit](https://img.shields.io/github/last-commit/yauheniya-ai/finanzamt)](https://github.com/yauheniya-ai/finanzamt/commits/main)
-[![Downloads](https://pepy.tech/badge/finanzamt)](https://pepy.tech/project/finanzamt)
-[![Documentation Status](https://readthedocs.org/projects/finanzamt/badge/?version=latest)](https://readthedocs.org/projects/finanzamt/)
+[![PyPI version](https://img.shields.io/pypi/v/finamt?color=blue&label=PyPI)](https://pypi.org/project/finamt/)
+[![Tests](https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml/badge.svg)](https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/yauheniya-ai/d09f6edc7b1928aeea1fbde834a6080b/raw/coverage.json)](https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml)
+[![GitHub last commit](https://img.shields.io/github/last-commit/yauheniya-ai/finamt)](https://github.com/yauheniya-ai/finamt/commits/main)
+[![Downloads](https://pepy.tech/badge/finamt)](https://pepy.tech/project/finamt)
+[![Documentation Status](https://readthedocs.org/projects/finamt/badge/?version=latest)](https://readthedocs.org/projects/finamt/)
 
 
-<img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> English • <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> [German](https://github.com/yauheniya-ai/finanzamt/blob/main/readme/README_de.md)
+<img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> English • <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> [German](https://github.com/yauheniya-ai/finamt/blob/main/readme/README_de.md)
 
 </div>
 
@@ -41,7 +41,7 @@ A Python library for extracting structured data from receipts and invoices and p
 ## Installation
 
 ```bash
-pip install finanzamt
+pip install finamt
 ```
 
 ### System Requirements
@@ -83,12 +83,12 @@ Download the installer from https://github.com/UB-Mannheim/tesseract/wiki and ad
 ### Interactive UI
 
 ```bash
-pip install "finanzamt[ui]"
-finanzamt --ui
+pip install "finamt[ui]"
+finamt --ui
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/yauheniya-ai/finanzamt/main/docs/images/Demo.webp" width="100%" />
+  <img src="https://raw.githubusercontent.com/yauheniya-ai/finamt/main/docs/images/Demo.webp" width="100%" />
   <em>Interactive UI to upload receipts and manage tax statements</em>
 </p>
 
@@ -97,7 +97,7 @@ finanzamt --ui
 #### Process a single receipt (expense)
 
 ```python
-from finanzamt import FinanceAgent
+from finamt import FinanceAgent
 
 agent = FinanceAgent()
 result = agent.process_receipt("receipt.pdf")
@@ -129,7 +129,7 @@ result = agent.process_receipt("invoice_to_client.pdf", receipt_type="sale")
 
 ```python
 from pathlib import Path
-from finanzamt import FinanceAgent
+from finamt import FinanceAgent
 
 agent = FinanceAgent()
 results = agent.batch_process(list(Path("receipts/").glob("*.pdf")))
@@ -149,25 +149,25 @@ Settings are read in priority order from: environment variables → `.env` file 
 # .env
 
 # OCR and general settings
-FINANZAMT_OLLAMA_BASE_URL=http://localhost:11434
-FINANZAMT_OCR_LANGUAGE=german
-FINANZAMT_OCR_TIMEOUT=60
-FINANZAMT_TESSERACT_CMD=tesseract
-FINANZAMT_OCR_PREPROCESS=true
-FINANZAMT_PDF_DPI=150
+FINAMT_OLLAMA_BASE_URL=http://localhost:11434
+FINAMT_OCR_LANGUAGE=german
+FINAMT_OCR_TIMEOUT=60
+FINAMT_TESSERACT_CMD=tesseract
+FINAMT_OCR_PREPROCESS=true
+FINAMT_PDF_DPI=150
 
 # Extraction agents — all 4 agents use this model
-FINANZAMT_AGENT_MODEL=qwen2.5:7b-instruct-q4_K_M
-FINANZAMT_AGENT_TIMEOUT=60
-FINANZAMT_AGENT_NUM_CTX=4096
-FINANZAMT_AGENT_MAX_RETRIES=2
+FINAMT_AGENT_MODEL=qwen2.5:7b-instruct-q4_K_M
+FINAMT_AGENT_TIMEOUT=60
+FINAMT_AGENT_NUM_CTX=4096
+FINAMT_AGENT_MAX_RETRIES=2
 ```
 
 You can also pass config objects directly:
 
 ```python
-from finanzamt import FinanceAgent
-from finanzamt.agents.config import Config, AgentsConfig
+from finamt import FinanceAgent
+from finamt.agents.config import Config, AgentsConfig
 
 agent = FinanceAgent(
     config=Config(ocr_language="deu+eng", pdf_dpi=150),
@@ -184,7 +184,7 @@ class FinanceAgent:
     def __init__(
         self,
         config:     Config | None = None,
-        db_path:    str | Path | None = "~/.finanzamt/finanzamt.db",
+        db_path:    str | Path | None = "~/.finamt/finamt.db",
         agents_cfg: AgentsConfig | None = None,
     ) -> None: ...
 
@@ -277,8 +277,8 @@ class ReceiptItem:
 A validated string subclass. Invalid values are silently normalised to `"other"`.
 
 ```python
-from finanzamt.agents.prompts import RECEIPT_CATEGORIES   # list[str]
-from finanzamt.models import ReceiptCategory
+from finamt.agents.prompts import RECEIPT_CATEGORIES   # list[str]
+from finamt.models import ReceiptCategory
 
 cat = ReceiptCategory("software")       # valid
 cat = ReceiptCategory("unknown_value")  # normalised to "other"
@@ -296,7 +296,7 @@ All exceptions inherit from `FinanceAgentError`.
 | `InvalidReceiptError` | Extracted data fails business-logic validation |
 
 ```python
-from finanzamt.exceptions import FinanceAgentError, OCRProcessingError
+from finamt.exceptions import FinanceAgentError, OCRProcessingError
 
 try:
     result = agent.process_receipt("scan.pdf")
@@ -315,7 +315,7 @@ Each receipt goes through four sequential LLM calls, each with a short focused p
 | Agent 3 | Total amount, VAT percentage, VAT amount |
 | Agent 4 | Line items (description, VAT rate, VAT amount, price) |
 
-Results are merged in Python — no additional LLM validation step. Debug output for every agent (prompt, raw response, parsed JSON) is saved to `~/.finanzamt/debug/<receipt_id>/`.
+Results are merged in Python — no additional LLM validation step. Debug output for every agent (prompt, raw response, parsed JSON) is saved to `~/.finamt/debug/<receipt_id>/`.
 
 ## Supported Categories
 
@@ -355,9 +355,4 @@ Results are merged in Python — no additional LLM validation step. Debug output
 
 ## License
 
-MIT — see [LICENSE](https://raw.githubusercontent.com/yauheniya-ai/finanzamt/main/LICENSE) for details.
-
-## Disclaimer
-
-`finanzamt` is an independent open-source project and is not affiliated with,
-endorsed by, or associated with German tax authorities or ELSTER.
+MIT — see [LICENSE](https://raw.githubusercontent.com/yauheniya-ai/finamt/main/LICENSE) for details.

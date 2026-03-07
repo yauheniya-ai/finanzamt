@@ -1,7 +1,7 @@
 """
 tests/test_ustva.py
 ~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.tax.ustva — generate_ustva, USTVAReport, USTVALineItem.
+Tests for finamt.tax.ustva — generate_ustva, USTVAReport, USTVALineItem.
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ from decimal import Decimal
 
 import pytest
 
-from finanzamt.models import Counterparty, ReceiptCategory, ReceiptData, ReceiptType
-from finanzamt.tax.ustva import USTVALineItem, USTVAReport, generate_ustva
+from finamt.models import Counterparty, ReceiptCategory, ReceiptData, ReceiptType
+from finamt.tax.ustva import USTVALineItem, USTVAReport, generate_ustva
 
 
 # ---------------------------------------------------------------------------

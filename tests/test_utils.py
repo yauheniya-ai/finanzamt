@@ -1,7 +1,7 @@
 """
 tests/test_utils.py
 ~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.utils — DataExtractor, clean_json_response,
+Tests for finamt.utils — DataExtractor, clean_json_response,
 parse_decimal, parse_date.
 
 Covers the bugs that were fixed:
@@ -20,8 +20,8 @@ from decimal import Decimal
 
 import pytest
 
-from finanzamt.agents.prompts import RECEIPT_CATEGORIES
-from finanzamt.utils import (
+from finamt.agents.prompts import RECEIPT_CATEGORIES
+from finamt.utils import (
     DataExtractor,
     clean_json_response,
     parse_date,

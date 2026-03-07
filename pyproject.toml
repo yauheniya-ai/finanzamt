@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "finanzamt"
-version = "0.4.6"
+name = "finamt"
+version = "0.5.0"
 description = "A Python library for extracting key information from receipts and preparing essential German tax return statements."
 readme = "README.md"
 license = {text = "MIT"}
@@ -57,8 +57,6 @@ dev = [
     "flake8>=5.0",
     "mypy>=0.991",
     "pre-commit>=2.20.0",
-]
-docs = [
     "sphinx>=5.0",
     "sphinx-rtd-theme>=1.0",
     "myst-parser>=0.18",
@@ -70,11 +68,11 @@ ui = [
 ]
 
 [project.urls]
-"Repository" = "https://github.com/yauheniya-ai/finanzamt"
-"Changelog" = "https://github.com/yauheniya-ai/finanzamt/blob/main/CHANGELOG.md"
+"Repository" = "https://github.com/yauheniya-ai/finamt"
+"Changelog" = "https://github.com/yauheniya-ai/finamt/blob/main/CHANGELOG.md"
 
 [project.scripts]
-finanzamt = "finanzamt.cli:main"
+finamt = "finamt.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -84,7 +82,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.coverage.run]
-source = ["finanzamt"]
+source = ["finamt"]
 omit = ["*/tests/*", "*/__pycache__/*", "*/site-packages/*"]
 
 [tool.setuptools]

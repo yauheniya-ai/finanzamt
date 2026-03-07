@@ -1,9 +1,9 @@
 Exceptions
 ==========
 
-Custom exception hierarchy used by finanzamt.
+Custom exception hierarchy used by finamt.
 
-.. automodule:: finanzamt.exceptions
+.. automodule:: finamt.exceptions
    :members:
    :undoc-members:
    :show-inheritance:

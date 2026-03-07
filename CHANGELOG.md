@@ -1,5 +1,11 @@
 # Changelog
 
+
+## Version 0.5.0 (2026-03-07)
+
+Name change to finamt
+- pip install finamt
+
 ## Version 0.4.6 (2026-03-06)
 
 VAT split net amount support
@@ -12,10 +18,10 @@ VAT split net amount support
 
 Switch OCR engine to PaddleOCR with Tesseract fallback
 - **PaddleOCR** is the primary OCR engine; model is installed automatically via pip (`paddleocr`, `paddlepaddle`) and loaded once as a singleton
-- **Tesseract fallback** — PaddleOCR runs inside a `ThreadPoolExecutor` with a configurable timeout (`FINANZAMT_OCR_TIMEOUT`, default 60 s); on timeout or any failure the process falls back to Tesseract, preventing OOM kills
+- **Tesseract fallback** — PaddleOCR runs inside a `ThreadPoolExecutor` with a configurable timeout (`FINAMT_OCR_TIMEOUT`, default 60 s); on timeout or any failure the process falls back to Tesseract, preventing OOM kills
 - **German language model** — PaddleOCR uses `lang='german'`; Tesseract fallback uses `deu+eng`
-- **`FINANZAMT_OCR_TIMEOUT`** — new config field (int, seconds, default 60) controlling how long to wait for PaddleOCR before switching to Tesseract
-- **`FINANZAMT_TESSERACT_CMD`** — re-introduced so the Tesseract binary path can be customised when not on `PATH`
+- **`FINAMT_OCR_TIMEOUT`** — new config field (int, seconds, default 60) controlling how long to wait for PaddleOCR before switching to Tesseract
+- **`FINAMT_TESSERACT_CMD`** — re-introduced so the Tesseract binary path can be customised when not on `PATH`
 - **Temp-file approach** — page pixmaps are saved to a temp PNG and passed by path to PaddleOCR; file is deleted in `finally`
 - **Event Streaming** – add event streaming to the terminal and the frontend
 
@@ -45,7 +51,7 @@ Improvements of the PreviewPanel and Dashboard
 ## Version 0.4.1 (2026-03-01)
 
 Multi-project storage and full German UI translation
-- **Multi-project storage** — receipts, PDFs, and debug output are now grouped under `~/.finanzamt/<project>/`; the default project lives at `~/.finanzamt/default/` (breaking change from the flat layout)
+- **Multi-project storage** — receipts, PDFs, and debug output are now grouped under `~/.finamt/<project>/`; the default project lives at `~/.finamt/default/` (breaking change from the flat layout)
 - **Project selector** — create, switch, and delete named projects directly from the header without restarting the server
 - **German translation** — complete DE/EN localisation for Sidebar, PreviewPanel, Dashboard, and the project selector; language toggle in the header
 - **Dashboard period label** — the subtitle now shows the currently selected time period (e.g. Q1 2025, März 2025) instead of a receipt count
@@ -56,7 +62,7 @@ Multi-project storage and full German UI translation
 
 Agentic workflow improvement
 - **Four-agent pipeline** — metadata, counterparty, amounts, and line items are each extracted by a dedicated agent with a short focused prompt, improving reliability on local models
-- **Debug output** — full prompt, raw model response, and parsed JSON are saved per agent to `~/.finanzamt/debug/<receipt_id>/` for inspection
+- **Debug output** — full prompt, raw model response, and parsed JSON are saved per agent to `~/.finamt/debug/<receipt_id>/` for inspection
 - **Rule-based extraction removed** — all structured data now comes from the LLM pipeline
 
 UI and database improvements
@@ -80,7 +86,7 @@ UI improvements for receipt management and database selection:
 Added internationalisation infrastructure and German/English language toggle to the web UI header.
 - DE/EN toggle: header now has a language switcher — amber track for German, red for English, black thumb; purely React-state-driven (no native input conflict)
 - react-i18next: i18n infrastructure wired via `src/i18n.ts` with `de.json` and `en.json` locale files; components use `t("key")` and `i18n.changeLanguage()`
-- Header localised: subtitle translates on toggle; install command stays hardcoded in English as `pip install finanzamt` — intentionally not translated
+- Header localised: subtitle translates on toggle; install command stays hardcoded in English as `pip install finamt` — intentionally not translated
 - Copy button: classic two-squares icon next to the install command copies it to clipboard; swaps to a green checkmark for 2s on success
 
 ## Version 0.3.0 (2026-02-24)
@@ -100,8 +106,8 @@ Persistent storage layer with content-addressed receipts, counterparty deduplica
 - Content-addressed IDs: receipt ID is a SHA-256 hash of OCR text; identical content = automatic duplicate detection with user notification
 - Purchase vs sale split: `ReceiptType` distinguishes Eingangsrechnung (Vorsteuer you reclaim) from Ausgangsrechnung (Umsatzsteuer you remit); UStVA liability = output − input
 - Counterparty model: replaces flat `vendor` string with structured `Counterparty` (parsed address, Steuernummer, USt-IdNr); deduplication by VAT ID then name
-- Auto-save: every successful extraction persists to `~/.finanzamt/finanzamt.db` automatically; JSON output is now opt-in via `--output-dir`
-- PDF archive: original PDF copied to `~/.finanzamt/pdfs/<hash>.pdf` for later display alongside extracted data
+- Auto-save: every successful extraction persists to `~/.finamt/finamt.db` automatically; JSON output is now opt-in via `--output-dir`
+- PDF archive: original PDF copied to `~/.finamt/pdfs/<hash>.pdf` for later display alongside extracted data
 - Test suite updated: storage, UStVA, agent, CLI, and model tests rewritten for new API; all 250+ tests passing
 
 
@@ -114,7 +120,7 @@ Add CLI and tests
 ## Version 0.1.4 (2026-02-22)
 
 Refactor config and models, unify prompt categories, fix OCR and utils, and update examples for consistent schema alignment
-- Config refactor: Replaced scattered `os.getenv` calls with `pydantic-settings.BaseSettings`; all runtime settings are validated, typed, and overridable by `FINANZAMT_` env vars.  
+- Config refactor: Replaced scattered `os.getenv` calls with `pydantic-settings.BaseSettings`; all runtime settings are validated, typed, and overridable by `FINAMT_` env vars.  
 - Unified model config: Promoted key model params (`temperature`, `top_p`, `num_ctx`) to validated fields; `get_model_config()` now returns a frozen `ModelConfig` dataclass.  
 - Prompt separation: Moved extraction templates and category definitions (`RECEIPT_CATEGORIES`, `build_extraction_prompt`) to a new `prompts.py` for cleaner separation of config and prompt logic.  
 - Schema alignment: Replaced outdated `ItemCategory` enum with `ReceiptCategory` validated against prompt categories; updated field names (`vendor`, `total_amount`, etc.) for full LLM schema alignment.  

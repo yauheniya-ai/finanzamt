@@ -1,7 +1,7 @@
 Utilities
 =========
 
-.. automodule:: finanzamt.utils
+.. automodule:: finamt.utils
    :members:
    :undoc-members:
    :show-inheritance:

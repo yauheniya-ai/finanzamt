@@ -1,8 +1,8 @@
-finanzamt
+finamt
 =========
 
-.. image:: https://img.shields.io/pypi/v/finanzamt?color=blue&label=PyPI
-   :target: https://pypi.org/project/finanzamt/
+.. image:: https://img.shields.io/pypi/v/finamt?color=blue&label=PyPI
+   :target: https://pypi.org/project/finamt/
    :alt: PyPI version
 
 .. image:: https://img.shields.io/badge/python-3.10+-blue.svg

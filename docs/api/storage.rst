@@ -3,26 +3,26 @@ Storage
 
 SQLite-backed storage layer for receipts and counterparties.
 
-finanzamt.storage.base
+finamt.storage.base
 ----------------------
 
-.. automodule:: finanzamt.storage.base
+.. automodule:: finamt.storage.base
    :members:
    :undoc-members:
    :show-inheritance:
 
-finanzamt.storage.sqlite
+finamt.storage.sqlite
 ------------------------
 
-.. automodule:: finanzamt.storage.sqlite
+.. automodule:: finamt.storage.sqlite
    :members:
    :undoc-members:
    :show-inheritance:
 
-finanzamt.storage.project
+finamt.storage.project
 -------------------------
 
-.. automodule:: finanzamt.storage.project
+.. automodule:: finamt.storage.project
    :members:
    :undoc-members:
    :show-inheritance:

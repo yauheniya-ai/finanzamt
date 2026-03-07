@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, os.path.abspath("../src"))
 
 # -- Project information -----------------------------------------------------
-project = "finanzamt"
+project = "finamt"
 copyright = "2026, Yauheniya Varabyova"
 author = "Yauheniya Varabyova"
 release = "0.4.6"
@@ -79,7 +79,7 @@ html_theme_options = {
 html_context = {
     "display_github": True,
     "github_user": "yauheniya-ai",
-    "github_repo": "finanzamt",
+    "github_repo": "finamt",
     "github_version": "main",
     "conf_py_path": "/docs/",
 }

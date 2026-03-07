@@ -1,7 +1,7 @@
 Configuration
 =============
 
-finanzamt reads configuration from environment variables or a ``.env`` file
+finamt reads configuration from environment variables or a ``.env`` file
 placed in the working directory.
 
 Environment variables
@@ -24,7 +24,7 @@ Environment variables
      - ``120``
      - HTTP timeout in seconds for Ollama requests.
    * - ``DB_PATH``
-     - ``finanzamt.db``
+     - ``finamt.db``
      - Path to the SQLite database file.
    * - ``OCR_ENGINE``
      - ``paddle``
@@ -43,7 +43,7 @@ Copy ``env.example`` from the repository and adjust it to your setup:
    OLLAMA_BASE_URL=http://localhost:11434
    OLLAMA_MODEL=qwen2.5:7b-instruct-q4_K_M
    OLLAMA_TIMEOUT=120
-   DB_PATH=./data/finanzamt.db
+   DB_PATH=./data/finamt.db
    OCR_ENGINE=paddle
    OCR_TIMEOUT=60
 
@@ -54,7 +54,7 @@ You can also pass configuration directly when constructing the agent:
 
 .. code-block:: python
 
-   from finanzamt import FinanceAgent, Config, ModelConfig
+   from finamt import FinanceAgent, Config, ModelConfig
 
    config = Config(
        model=ModelConfig(
@@ -79,7 +79,7 @@ models are faster but may extract data less accurately:
 
 .. code-block:: python
 
-   from finanzamt import FinanceAgent, Config, ModelConfig
+   from finamt import FinanceAgent, Config, ModelConfig
 
    agent = FinanceAgent(
        config=Config(model=ModelConfig(model_name="llama3.2:3b"))

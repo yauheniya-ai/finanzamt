@@ -1,14 +1,14 @@
 """
 tests/test_prompts.py
 ~~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.agents.prompts — category list and 4 prompt builders.
+Tests for finamt.agents.prompts — category list and 4 prompt builders.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from finanzamt.agents.prompts import (
+from finamt.agents.prompts import (
     RECEIPT_CATEGORIES,
     build_agent1_prompt,
     build_agent2_prompt,

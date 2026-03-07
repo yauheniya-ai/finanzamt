@@ -1,7 +1,7 @@
 """
 tests/test_cli_inprocess.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In-process tests for FinanzamtCLI with FinanceAgent fully mocked.
+In-process tests for FinamtCLI with FinanceAgent fully mocked.
 """
 
 from __future__ import annotations
@@ -13,21 +13,21 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from finanzamt.cli import FinanzamtCLI
+from finamt.cli import FinamtCLI
 
 
-class TestFinanzamtCLI:
+class TestFinamtCLI:
 
     def test_print_version(self, capsys):
-        cli = FinanzamtCLI()
+        cli = FinamtCLI()
         cli.print_version()
         out = capsys.readouterr().out
-        assert "finanzamt version" in out
+        assert "finamt version" in out
 
     def test_process_receipt_success(self, mocker, tmp_path):
-        cli = FinanzamtCLI()
+        cli = FinamtCLI()
 
-        mock_agent_cls = mocker.patch("finanzamt.cli.FinanceAgent")
+        mock_agent_cls = mocker.patch("finamt.cli.FinanceAgent")
         mock_instance  = mock_agent_cls.return_value
 
         mock_result = mocker.Mock()
@@ -47,9 +47,9 @@ class TestFinanzamtCLI:
         mock_instance.process_receipt.assert_called_once()
 
     def test_process_receipt_duplicate(self, mocker, tmp_path):
-        cli = FinanzamtCLI()
+        cli = FinamtCLI()
 
-        mock_agent_cls = mocker.patch("finanzamt.cli.FinanceAgent")
+        mock_agent_cls = mocker.patch("finamt.cli.FinanceAgent")
         mock_instance  = mock_agent_cls.return_value
 
         mock_result = mocker.Mock()
@@ -66,14 +66,14 @@ class TestFinanzamtCLI:
         assert rc == 0   # duplicate is not a failure
 
     def test_process_receipt_missing_file(self, tmp_path):
-        cli = FinanzamtCLI()
+        cli = FinamtCLI()
         rc = cli.process_receipt("nonexistent", tmp_path)
         assert rc == 1
 
     def test_batch_process_mock(self, mocker, tmp_path, capsys):
-        cli = FinanzamtCLI()
+        cli = FinamtCLI()
 
-        mock_agent_cls = mocker.patch("finanzamt.cli.FinanceAgent")
+        mock_agent_cls = mocker.patch("finamt.cli.FinanceAgent")
         mock_instance  = mock_agent_cls.return_value
 
         mock_result = mocker.Mock()
@@ -103,6 +103,6 @@ class TestFinanzamtCLI:
         assert "Vendor GmbH" in out
 
     def test_batch_process_no_pdfs(self, tmp_path):
-        cli = FinanzamtCLI()
+        cli = FinamtCLI()
         rc = cli.batch_process(tmp_path)
         assert rc == 1

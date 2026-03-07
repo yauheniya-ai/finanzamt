@@ -1,7 +1,7 @@
 Agent
 =====
 
-The :class:`~finanzamt.FinanceAgent` is the main entry point for processing
+The :class:`~finamt.FinanceAgent` is the main entry point for processing
 receipts. Internally it runs a 4-agent pipeline:
 
 1. **Metadata agent** — document date, type, currency
@@ -9,42 +9,42 @@ receipts. Internally it runs a 4-agent pipeline:
 3. **Amounts agent** — total, net, VAT, tax rate
 4. **Line items agent** — individual purchased items
 
-finanzamt.agents.agent
+finamt.agents.agent
 ----------------------
 
-.. automodule:: finanzamt.agents.agent
+.. automodule:: finamt.agents.agent
    :members:
    :undoc-members:
    :show-inheritance:
 
-finanzamt.agents.config
+finamt.agents.config
 -----------------------
 
-.. automodule:: finanzamt.agents.config
+.. automodule:: finamt.agents.config
    :members:
    :undoc-members:
    :show-inheritance:
 
-finanzamt.agents.pipeline
+finamt.agents.pipeline
 -------------------------
 
-.. automodule:: finanzamt.agents.pipeline
+.. automodule:: finamt.agents.pipeline
    :members:
    :undoc-members:
    :show-inheritance:
 
-finanzamt.agents.prompts
+finamt.agents.prompts
 ------------------------
 
-.. automodule:: finanzamt.agents.prompts
+.. automodule:: finamt.agents.prompts
    :members:
    :undoc-members:
    :show-inheritance:
 
-finanzamt.agents.llm\_caller
+finamt.agents.llm\_caller
 -----------------------------
 
-.. automodule:: finanzamt.agents.llm_caller
+.. automodule:: finamt.agents.llm_caller
    :members:
    :undoc-members:
    :show-inheritance:

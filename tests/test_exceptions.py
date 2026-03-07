@@ -1,14 +1,14 @@
 """
 tests/test_exceptions.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.exceptions — hierarchy, cause chaining, str representation.
+Tests for finamt.exceptions — hierarchy, cause chaining, str representation.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from finanzamt.exceptions import (
+from finamt.exceptions import (
     FinanceAgentError,
     InvalidReceiptError,
     LLMExtractionError,

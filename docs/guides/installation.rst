@@ -13,7 +13,7 @@ Install from PyPI
 
 .. code-block:: bash
 
-   pip install finanzamt
+   pip install finamt
 
 Optional extras
 ~~~~~~~~~~~~~~~
@@ -22,19 +22,19 @@ Install the web UI backend (FastAPI + Uvicorn):
 
 .. code-block:: bash
 
-   pip install "finanzamt[ui]"
+   pip install "finamt[ui]"
 
 Install development tools:
 
 .. code-block:: bash
 
-   pip install "finanzamt[dev]"
+   pip install "finamt[dev]"
 
 Install documentation tools:
 
 .. code-block:: bash
 
-   pip install "finanzamt[docs]"
+   pip install "finamt[docs]"
 
 Setting up Ollama
 -----------------

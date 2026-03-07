@@ -1,7 +1,7 @@
 """
 tests/test_config.py
 ~~~~~~~~~~~~~~~~~~~~
-Tests for finanzamt.agents.config — Config, AgentsConfig, ModelConfig,
+Tests for finamt.agents.config — Config, AgentsConfig, ModelConfig,
 AgentModelConfig dataclasses, and backward-compatible aliases.
 """
 
@@ -14,7 +14,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from finanzamt.agents.config import AgentModelConfig, AgentsConfig, Config, ModelConfig, cfg
+from finamt.agents.config import AgentModelConfig, AgentsConfig, Config, ModelConfig, cfg
 
 
 class TestConfigDefaults:
@@ -102,15 +102,15 @@ class TestConfigValidation:
 
 class TestConfigEnvVarOverride:
     def test_env_var_overrides_model(self):
-        with patch.dict(os.environ, {"FINANZAMT_MODEL": "mistral"}):
+        with patch.dict(os.environ, {"FINAMT_MODEL": "mistral"}):
             assert Config().model == "mistral"
 
     def test_env_var_overrides_pdf_dpi(self):
-        with patch.dict(os.environ, {"FINANZAMT_PDF_DPI": "150"}):
+        with patch.dict(os.environ, {"FINAMT_PDF_DPI": "150"}):
             assert Config().pdf_dpi == 150
 
     def test_env_var_overrides_ocr_preprocess(self):
-        with patch.dict(os.environ, {"FINANZAMT_OCR_PREPROCESS": "false"}):
+        with patch.dict(os.environ, {"FINAMT_OCR_PREPROCESS": "false"}):
             assert Config().ocr_preprocess is False
 
 
@@ -143,7 +143,7 @@ class TestAgentsConfig:
         assert isinstance(AgentsConfig().get_agent_config(), AgentModelConfig)
 
     def test_env_var_overrides_agent_model(self):
-        with patch.dict(os.environ, {"FINANZAMT_AGENT_MODEL": "llama3.1"}):
+        with patch.dict(os.environ, {"FINAMT_AGENT_MODEL": "llama3.1"}):
             assert AgentsConfig().agent_model == "llama3.1"
 
     def test_agent_model_config_is_frozen(self):

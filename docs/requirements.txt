@@ -1,4 +1,4 @@
-# Pinned requirements for building the finanzamt documentation.
+# Pinned requirements for building the finamt documentation.
 # Install with: pip install -r docs/requirements.txt
 
 sphinx>=5.0
