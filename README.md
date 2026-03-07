@@ -1,6 +1,10 @@
 # finamt
 
-<img src="https://raw.githubusercontent.com/yauheniya-ai/finamt/main/.github/images/finamt-wordmark.svg" width="50%" />
+<img src="https://raw.githubusercontent.com/yauheniya-ai/finamt/main/.github/images/finamt.png" width="50%" alt="finamt"/>
+
+<div>
+<br>
+</div>
 
 <div align="center">
 
