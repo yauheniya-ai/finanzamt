@@ -18,7 +18,7 @@
 [![Documentation Status](https://readthedocs.org/projects/finamt/badge/?version=latest)](https://readthedocs.org/projects/finamt/)
 
 
-<img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> English • <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> [German](https://github.com/yauheniya-ai/finamt/blob/main/readme/README_de.md)
+<img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> English | <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> [German](https://github.com/yauheniya-ai/finamt/blob/main/readme/README_de.md)
 
 </div>
 
