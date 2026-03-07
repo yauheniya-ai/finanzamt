@@ -8,6 +8,8 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/yauheniya-ai/finanzamt)](https://github.com/yauheniya-ai/finanzamt/commits/main)
 [![Downloads](https://pepy.tech/badge/finanzamt)](https://pepy.tech/project/finanzamt)
 
+English • [German](https://raw.githubusercontent.com/yauheniya-ai/finanzamt/main/readme/README_de.md)
+
 A Python library for extracting structured data from receipts and invoices and preparing essential German VAT statements.
 
 ## Features
@@ -40,9 +42,21 @@ pip install finanzamt
 
 - Python 3.10+
 - Ollama running locally with a supported model pulled
-- Tesseract OCR (optional — used as fallback when PaddleOCR times out)
+- Tesseract OCR (optional fallback when PaddleOCR times out)
 
-#### Tesseract OCR (optional fallback)
+#### Ollama
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull a model — qwen2.5 7B is the recommended default
+ollama pull qwen2.5:7b-instruct-q4_K_M
+```
+
+Other models that work well: `qwen3:8b`, `llama3.2`, `llama3.1`.
+
+#### Tesseract OCR (optional fallback from PaddleOCR)
 
 **Ubuntu / Debian**
 ```bash
@@ -57,18 +71,6 @@ brew install tesseract tesseract-lang
 **Windows**
 
 Download the installer from https://github.com/UB-Mannheim/tesseract/wiki and add it to your `PATH`.
-
-#### Ollama
-
-```bash
-# Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# Pull a model — qwen2.5 7B is the recommended default
-ollama pull qwen2.5:7b-instruct-q4_K_M
-```
-
-Other models that work well: `qwen3:8b`, `llama3.2`, `llama3.1`.
 
 ## Quick Start
 
@@ -162,7 +164,7 @@ from finanzamt import FinanceAgent
 from finanzamt.agents.config import Config, AgentsConfig
 
 agent = FinanceAgent(
-    config=Config(ocr_language="deu+eng", pdf_dpi=300),
+    config=Config(ocr_language="deu+eng", pdf_dpi=150),
     agents_cfg=AgentsConfig(agent_model="qwen3:8b"),
 )
 ```
@@ -328,6 +330,14 @@ Results are merged in Python — no additional LLM validation step. Debug output
 | `products` | Physical goods sold to a client | sale |
 | `licensing` | Software or IP rights licensed to a client | sale |
 | `other` | Anything that does not match the above | either |
+
+## TODO
+
+- [x] Receipt parsing
+- [x] Tax calculation engine
+- [ ] ELSTER field mapper
+- [ ] XML generator
+- [ ] XSD validator
 
 ## Contributing
 
