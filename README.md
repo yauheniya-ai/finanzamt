@@ -10,7 +10,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/yauheniya-ai/finanzamt)](https://github.com/yauheniya-ai/finanzamt/commits/main)
 [![Downloads](https://pepy.tech/badge/finanzamt)](https://pepy.tech/project/finanzamt)
 
-<img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> English • <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> [German](https://raw.githubusercontent.com/yauheniya-ai/finanzamt/main/readme/README_de.md)
+<img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> English • <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> [German](https://github.com/yauheniya-ai/finanzamt/blob/main/readme/README_de.md)
 
 </div>
 

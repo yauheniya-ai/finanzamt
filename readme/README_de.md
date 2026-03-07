@@ -11,7 +11,7 @@
 [![Downloads](https://pepy.tech/badge/finanzamt)](https://pepy.tech/project/finanzamt)
 
 
-<img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> [English](https://raw.githubusercontent.com/yauheniya-ai/finanzamt/main/README.md) • <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> Deutsch
+<img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> [English](https://github.com/yauheniya-ai/finanzamt/blob/main/README.md) • <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> Deutsch
 
 </div>
 
