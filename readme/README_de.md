@@ -1,6 +1,6 @@
 # finanzamt
 
-<p align="center">
+<div align="center">
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -13,7 +13,7 @@
 
 [English](https://raw.githubusercontent.com/yauheniya-ai/finanzamt/main/README.md) • Deutsch
 
-</p>
+</div>
 
 Eine Python-Bibliothek zur strukturierten Extraktion von Daten aus Belegen und Rechnungen sowie zur Erstellung wesentlicher deutscher Umsatzsteuervoranmeldungen.
 

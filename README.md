@@ -1,6 +1,6 @@
 # finanzamt
 
-<p align="center">
+<div align="center">
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -12,7 +12,7 @@
 
 English • [German](https://raw.githubusercontent.com/yauheniya-ai/finanzamt/main/readme/README_de.md)
 
-</p>
+</div>
 
 A Python library for extracting structured data from receipts and invoices and preparing essential German VAT statements.
 
