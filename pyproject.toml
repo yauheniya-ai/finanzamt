@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finamt"
-version = "0.5.1"
+version = "0.5.2"
 description = "A Python library for extracting key information from receipts and preparing essential German tax return statements."
 readme = "README.md"
 license = {text = "MIT"}
@@ -33,18 +33,21 @@ classifiers = [
     "Topic :: Text Processing :: Indexing",
     "Topic :: Multimedia :: Graphics :: Capture :: Digital Camera",
 ]
-keywords = ["finanzamt", "finance", "receipts", "tax", "statement", "ocr", "extraction"]
-requires-python = ">=3.10"
+keywords = ["finanzamt", "finance", "office", "receipts", "invoices", "tax", "statement", "ocr", "extraction"]
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "requests>=2.28.0",
     "PyMuPDF>=1.22.0",
-    "paddleocr",
-    "paddlepaddle",
+    "paddleocr>=3.0.0",
+    "paddlepaddle>=3.0.0",
     "pytesseract>=0.3.10",
-    "pydantic",
-    "pydantic-settings",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
     "Pillow>=9.0.0",
     "numpy>=1.21.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -60,11 +63,6 @@ dev = [
     "sphinx>=5.0",
     "sphinx-rtd-theme>=1.0",
     "myst-parser>=0.18",
-]
-ui = [
-    "fastapi>=0.110", 
-    "uvicorn[standard]>=0.29", 
-    "python-multipart>=0.0.9"
 ]
 
 [project.urls]
