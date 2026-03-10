@@ -53,6 +53,7 @@ class SQLiteRepository:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._init_schema()
+        self._deduplicate_counterparties()
 
     # ------------------------------------------------------------------
     # Context manager
@@ -223,10 +224,26 @@ class SQLiteRepository:
 
     def get_or_create_counterparty(self, cp: Counterparty) -> Counterparty:
         """
-        Always insert a fresh counterparty row for this receipt.
-        Each receipt owns its own counterparty record so address / VAT-ID
-        corrections on one receipt never affect another.
+        Return an existing counterparty matching by VAT-ID (preferred) or by
+        name (fallback). Only inserts a new row when no match is found.
         """
+        row = None
+        if cp.vat_id and cp.vat_id.strip():
+            row = self._conn.execute(
+                "SELECT * FROM counterparties WHERE LOWER(vat_id) = LOWER(?)"
+                " ORDER BY created_at ASC LIMIT 1",
+                (cp.vat_id.strip(),),
+            ).fetchone()
+        if row is None and cp.name and cp.name.strip():
+            row = self._conn.execute(
+                "SELECT * FROM counterparties"
+                " WHERE LOWER(name) = LOWER(?) AND (vat_id IS NULL OR vat_id = '')"
+                " ORDER BY created_at ASC LIMIT 1",
+                (cp.name.strip(),),
+            ).fetchone()
+        if row is not None:
+            return self._row_to_counterparty(row)
+        # No existing match — insert
         self._exec(
             """INSERT INTO counterparties
                (id, name, street_and_number, postcode, city, state, country,
@@ -240,6 +257,64 @@ class SQLiteRepository:
             ),
         )
         return cp
+
+    def _deduplicate_counterparties(self) -> None:
+        """
+        One-time deduplication: for each group of counterparties that share
+        the same VAT-ID (if present) or same name, keep the oldest row and
+        repoint all receipt references to it, then delete the extras.
+        Called automatically on every DB open — safe to run repeatedly.
+        """
+        # Collect all groups with more than one member
+        groups = self._conn.execute(
+            """
+            SELECT COALESCE(NULLIF(TRIM(vat_id), ''), LOWER(TRIM(name))) AS key,
+                   MIN(created_at) AS keep_at
+            FROM counterparties
+            GROUP BY key
+            HAVING COUNT(*) > 1
+            """
+        ).fetchall()
+        if not groups:
+            return
+        with self._lock:
+            for grp in groups:
+                key, keep_at = grp["key"], grp["keep_at"]
+                # Canonical = oldest row in the group
+                canonical = self._conn.execute(
+                    """
+                    SELECT id FROM counterparties
+                    WHERE COALESCE(NULLIF(TRIM(vat_id), ''), LOWER(TRIM(name))) = ?
+                      AND created_at = ?
+                    LIMIT 1
+                    """,
+                    (key, keep_at),
+                ).fetchone()
+                if canonical is None:
+                    continue
+                canonical_id = canonical["id"]
+                # Reroute receipts
+                self._conn.execute(
+                    """
+                    UPDATE receipts SET counterparty_id = ?
+                    WHERE counterparty_id IN (
+                        SELECT id FROM counterparties
+                        WHERE COALESCE(NULLIF(TRIM(vat_id), ''), LOWER(TRIM(name))) = ?
+                          AND id != ?
+                    )
+                    """,
+                    (canonical_id, key, canonical_id),
+                )
+                # Delete duplicates
+                self._conn.execute(
+                    """
+                    DELETE FROM counterparties
+                    WHERE COALESCE(NULLIF(TRIM(vat_id), ''), LOWER(TRIM(name))) = ?
+                      AND id != ?
+                    """,
+                    (key, canonical_id),
+                )
+            self._conn.commit()
 
     def _row_to_counterparty(self, row: sqlite3.Row) -> Counterparty:
         return Counterparty(
@@ -521,11 +596,20 @@ class SQLiteRepository:
         return self.exists(receipt_id)
 
     def list_verified_counterparties(self) -> list[dict]:
-        """Return all counterparties where verified=1."""
+        """Return deduplicated verified counterparties (one per VAT-ID or name, oldest kept)."""
         rows = self._conn.execute(
-            """SELECT id, name, street_and_number, postcode, city, state, country,
-                      tax_number, vat_id, verified
-               FROM counterparties WHERE verified = 1 ORDER BY name ASC"""
+            """SELECT c.id, c.name, c.street_and_number, c.postcode, c.city, c.state, c.country,
+                      c.tax_number, c.vat_id, c.verified
+               FROM counterparties c
+               WHERE c.verified = 1
+                 AND c.created_at = (
+                     SELECT MIN(c2.created_at)
+                     FROM counterparties c2
+                     WHERE c2.verified = 1
+                       AND COALESCE(NULLIF(c2.vat_id, ''), c2.name)
+                         = COALESCE(NULLIF(c.vat_id,  ''), c.name)
+                 )
+               ORDER BY c.name ASC"""
         ).fetchall()
         return [
             {
@@ -550,6 +634,54 @@ class SQLiteRepository:
             "UPDATE counterparties SET verified = ? WHERE id = ?",
             (1 if verified else 0, cp_id),
         )
+
+    def list_all_counterparties(self) -> list[dict]:
+        """Return every counterparty row ordered by name then created_at."""
+        rows = self._conn.execute(
+            """SELECT id, name, street_and_number, postcode, city, state, country,
+                      tax_number, vat_id, verified, created_at
+               FROM counterparties
+               ORDER BY name ASC, created_at ASC"""
+        ).fetchall()
+        return [
+            {
+                "id":         r["id"],
+                "name":       r["name"],
+                "tax_number": r["tax_number"],
+                "vat_id":     r["vat_id"],
+                "verified":   bool(r["verified"]),
+                "created_at": r["created_at"],
+                "address": {
+                    "street_and_number": r["street_and_number"],
+                    "postcode":          r["postcode"],
+                    "city":              r["city"],
+                    "state":             r["state"],
+                    "country":           r["country"],
+                },
+            }
+            for r in rows
+        ]
+
+    def update_counterparty(self, cp_id: str, fields: dict) -> bool:
+        """Update editable fields of a counterparty. Returns True if a row was updated."""
+        allowed = {
+            "name", "tax_number", "vat_id", "verified",
+            "street_and_number", "postcode", "city", "state", "country",
+        }
+        updates = {k: v for k, v in fields.items() if k in allowed}
+        if not updates:
+            return False
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        values = list(updates.values()) + [cp_id]
+        cur = self._exec(
+            f"UPDATE counterparties SET {set_clause} WHERE id = ?", values
+        )
+        return cur.rowcount > 0
+
+    def delete_counterparty(self, cp_id: str) -> bool:
+        """Delete a counterparty by id. Returns True if a row was removed."""
+        cur = self._exec("DELETE FROM counterparties WHERE id = ?", (cp_id,))
+        return cur.rowcount > 0
 
     def list_all(self) -> Iterable[ReceiptData]:
         return self._query_receipts(

@@ -21,6 +21,10 @@ GET    /receipts/{id}
 GET    /receipts/{id}/pdf
 PATCH  /receipts/{id}
 DELETE /receipts/{id}
+GET    /counterparties                 — all counterparty rows
+GET    /counterparties/verified        — deduplicated verified counterparties
+DELETE /counterparties/{id}            — remove a counterparty row
+PATCH  /counterparties/{id}/verify    — set verified flag
 GET    /tax/ustva?quarter=1&year=2024
 """
 
@@ -108,7 +112,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -553,15 +557,56 @@ def delete_receipt(receipt_id: str, db: Optional[str] = Query(default=None)):
 # Tax
 # ---------------------------------------------------------------------------
 
+@app.get("/counterparties", tags=["counterparties"])
+def list_all_counterparties(db: Optional[str] = Query(default=None)):
+    """Return every counterparty row (verified and unverified)."""
+    db_path = _resolve_db(db)
+    if not db_path.exists():
+        return {"counterparties": []}
+    with _repo(db_path) as repo:
+        rows = repo.list_all_counterparties()
+    return {"counterparties": rows}
+
+
 @app.get("/counterparties/verified", tags=["counterparties"])
 def list_verified_counterparties(db: Optional[str] = Query(default=None)):
-    """Return all counterparties marked as verified."""
+    """Return deduplicated verified counterparties (one per VAT-ID or name)."""
     db_path = _resolve_db(db)
     if not db_path.exists():
         return {"counterparties": []}
     with _repo(db_path) as repo:
         rows = repo.list_verified_counterparties()
     return {"counterparties": rows}
+
+
+@app.delete("/counterparties/{cp_id}", status_code=204, tags=["counterparties"])
+def delete_counterparty(cp_id: str, db: Optional[str] = Query(default=None)):
+    """Permanently delete a counterparty row."""
+    db_path = _resolve_db(db)
+    with _repo(db_path) as repo:
+        if not repo.delete_counterparty(cp_id):
+            raise HTTPException(status_code=404, detail="Counterparty not found.")
+
+
+@app.patch("/counterparties/{cp_id}", tags=["counterparties"])
+def update_counterparty(
+    cp_id: str,
+    body: dict,
+    db: Optional[str] = Query(default=None),
+):
+    """Update name, tax_number, vat_id, verified, and address fields of a counterparty."""
+    db_path = _resolve_db(db)
+    # Flatten address sub-dict into top-level fields expected by the repo
+    flat: dict = {}
+    for k, v in body.items():
+        if k == "address" and isinstance(v, dict):
+            flat.update(v)
+        else:
+            flat[k] = v
+    with _repo(db_path) as repo:
+        if not repo.update_counterparty(cp_id, flat):
+            raise HTTPException(status_code=404, detail="Counterparty not found.")
+    return {"ok": True}
 
 
 @app.patch("/counterparties/{cp_id}/verify", tags=["counterparties"])

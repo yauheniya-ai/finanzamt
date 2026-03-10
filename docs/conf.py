@@ -12,10 +12,7 @@ sys.path.insert(0, os.path.abspath("../src"))
 project = "finamt"
 copyright = "2026, Yauheniya Varabyova"
 author = "Yauheniya Varabyova"
-try:
-    release = version("finamt")
-except PackageNotFoundError:
-    release = "unknown"
+release = "latest"
 
 # -- Autodoc mock imports ----------------------------------------------------
 # Heavy ML/binary packages that cannot be installed on ReadTheDocs build agents

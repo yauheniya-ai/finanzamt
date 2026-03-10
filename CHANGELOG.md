@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 0.5.3 (2026-03-10)
+
+Counterparty management overhaul — full inline editing in the UI, startup deduplication, and a new PATCH API endpoint
+- **Counterparty Explorer rewritten** — card-style list now shows all fields (name, VAT ID, tax number, full address, verified badge, created date, ID) instead of the previous sparse 6-column table
+- **Inline editing** — each entry has an Edit button that expands a two-column form covering all editable fields: name, tax number, VAT ID, verified flag, street & number, postcode, city, state, country; changes are applied in-place without a full reload
+- **`PATCH /counterparties/{id}`** — new API endpoint accepting any subset of counterparty fields as a flat body or with a nested `address` sub-object; returns `{"ok": true}` on success, 404 if the ID is unknown
+- **`update_counterparty()` storage method** — whitelist-validated `UPDATE` query added to `SQLiteRepository`; only the allowed fields are written, preventing accidental overwrites
+- **Lookup-first deduplication in `get_or_create_counterparty`** — matches by VAT ID first, then by name when VAT ID is absent, before inserting; prevents duplicate rows on re-upload of the same receipt
+- **Startup deduplication sweep** — `_deduplicate_counterparties()` runs at DB init and merges duplicate rows introduced by earlier versions, keeping the oldest row and re-pointing linked receipts
+- **CORS regex** — replaced the static `allow_origins` list with `allow_origin_regex` matching any `localhost` or `127.0.0.1` port, fixing preflight failures on non-standard development ports
+
 ## Version 0.5.2 (2026-03-10)
 
 Dependency cleanup and Python version cap

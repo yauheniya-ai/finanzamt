@@ -30,6 +30,13 @@ Usage examples
 
 from __future__ import annotations
 
+import warnings
+try:
+    from requests.exceptions import RequestsDependencyWarning
+    warnings.filterwarnings("ignore", category=RequestsDependencyWarning)
+except ImportError:
+    pass
+
 import argparse
 import json
 import logging
@@ -44,7 +51,6 @@ from finamt import FinanceAgent
 from finamt.storage.sqlite import DEFAULT_DB_PATH
 from finamt.storage import get_repository
 from finamt.tax.ustva import generate_ustva
-
 
 # ---------------------------------------------------------------------------
 # CLI class
