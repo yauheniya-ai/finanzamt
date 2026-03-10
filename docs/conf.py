@@ -3,7 +3,7 @@
 
 import os
 import sys
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import version as get_version, PackageNotFoundError
 
 # Make the package importable without installing it
 sys.path.insert(0, os.path.abspath("../src"))
@@ -13,6 +13,10 @@ project = "finamt"
 copyright = "2026, Yauheniya Varabyova"
 author = "Yauheniya Varabyova"
 release = "latest"
+try:
+    version = get_version("finamt")
+except PackageNotFoundError:
+    version = "unknown"
 
 # -- Autodoc mock imports ----------------------------------------------------
 # Heavy ML/binary packages that cannot be installed on ReadTheDocs build agents
