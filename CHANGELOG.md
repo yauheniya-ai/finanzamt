@@ -1,5 +1,13 @@
 # Changelog
 
+# Version 0.5.4 (2026-03-14)
+
+Frontend polish: icon category picker, sidebar sorting, and UX fixes
+- **Custom category dropdown** — replaced the plain `<select>` in the preview panel with a fully custom dropdown; each option renders the category's Iconify icon alongside its translated label; the trigger button shows the active category icon and a rotating chevron; the list is scrollable and highlights the selected entry
+- **Sidebar sorting** — receipts within each category group are now sorted first by counterparty name (the display name visible in the list — vendor, counterparty, or short hash) ascending alphabetically, then by receipt date descending so the most recent entry always appears first for the same counterparty (e.g. Adobe 2025-12 → Adobe 2025-11 → Haufe …)
+- **Streaming messages** — upload progress steps shown during extraction are displayed more clearly in the sidebar upload button, reducing visual noise during long OCR/LLM runs
+- **Footer link** — corrected the Read the Docs URL in the footer to point to the current documentation site
+
 ## Version 0.5.3 (2026-03-10)
 
 Counterparty management overhaul — full inline editing in the UI, startup deduplication, and a new PATCH API endpoint
