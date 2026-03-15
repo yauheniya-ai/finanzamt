@@ -1,6 +1,13 @@
 # Changelog
 
-# Version 0.5.4 (2026-03-14)
+## Version 0.5.5 (2026-03-15)
+
+Extended date parsing to handle non-ISO month tokens in extracted receipt dates
+- **German month names** — `parse_date()` now recognises Oracle/SAP-style abbreviated tokens (`OKT`, `MRZ`, `DEZ`, `MAI`, `JUN`, `JUL` …) as well as full German names (`OKTOBER`, `DEZEMBER`, `MÄRZ`, `MAERZ` …) and converts them to their two-digit numeric equivalent before parsing; fixes `receipt_date: null` for invoices where the LLM reproduces the raw date string from the document (e.g. `30-OKT-2025` → `2025-10-30`)
+- **English month names unaffected** — English abbreviated (`MAY`, `JUL`) and full (`July`, `May`) names continue to be handled by Python's native `strptime` via `%d-%b-%Y` / `%d-%B-%Y`; the German normalisation pass is only applied when those formats do not match, preventing any conflict
+- **Whitespace tolerance** — date strings are stripped before all parsing attempts
+
+## Version 0.5.4 (2026-03-14)
 
 Frontend polish: icon category picker, sidebar sorting, and UX fixes
 - **Custom category dropdown** — replaced the plain `<select>` in the preview panel with a fully custom dropdown; each option renders the category's Iconify icon alongside its translated label; the trigger button shows the active category icon and a rotating chevron; the list is scrollable and highlights the selected entry

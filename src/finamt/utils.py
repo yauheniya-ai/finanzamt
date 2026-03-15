@@ -395,27 +395,57 @@ def parse_decimal(value: Any) -> Optional[Decimal]:
         return None
 
 
+_DE_MONTH: dict[str, str] = {
+    # abbreviated (3-letter Oracle/SAP style)
+    "JAN": "01", "FEB": "02", "MRZ": "03", "MAR": "03", "APR": "04",
+    "MAI": "05", "JUN": "06", "JUL": "07", "AUG": "08", "SEP": "09",
+    "OKT": "10", "NOV": "11", "DEZ": "12",
+    # full German names
+    "JANUAR": "01", "FEBRUAR": "02", "MÄRZ": "03", "MAERZ": "03",
+    "APRIL": "04", "JUNI": "06", "JULI": "07", "AUGUST": "08",
+    "SEPTEMBER": "09", "OKTOBER": "10", "NOVEMBER": "11", "DEZEMBER": "12",
+}
+
+def _normalise_date_str(date_str: str) -> str:
+    """Replace German month names/abbreviations with their two-digit number."""
+    import re
+    def _replace(m: re.Match) -> str:
+        return _DE_MONTH.get(m.group(0).upper(), m.group(0))
+    return re.sub(r"[A-ZÄÖÜa-zäöü]+", _replace, date_str)
+
+
 def parse_date(date_str: str) -> Optional[datetime]:
     """
     Parse an ISO-format date string (``YYYY-MM-DD``) to ``datetime``.
 
     Also accepts common European formats as a fallback.  Uses explicit
     format strings rather than ``%B``/``%b`` to avoid locale dependency.
+    Handles English abbreviated months (JUL, AUG …) and German month
+    names/abbreviations (OKT, MRZ, JANUAR, OKTOBER …).
     """
     if not date_str:
         return None
+
+    candidates = [date_str.strip()]
+    normalised = _normalise_date_str(date_str.strip())
+    if normalised != candidates[0]:
+        candidates.append(normalised)
 
     formats = [
         "%Y-%m-%d",
         "%d.%m.%Y",
         "%d/%m/%Y",
         "%Y/%m/%d",
+        "%d-%m-%Y",
+        "%d-%b-%Y",   # e.g. 30-JUL-2025 (English abbrev, locale-safe on CPython)
+        "%d-%B-%Y",   # e.g. 30-July-2025
     ]
-    for fmt in formats:
-        try:
-            return datetime.strptime(date_str, fmt)
-        except ValueError:
-            continue
+    for candidate in candidates:
+        for fmt in formats:
+            try:
+                return datetime.strptime(candidate, fmt)
+            except ValueError:
+                continue
 
     # Last resort: delegate to DataExtractor which handles German month names
     return DataExtractor.extract_date(date_str)
