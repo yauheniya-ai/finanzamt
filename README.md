@@ -51,7 +51,7 @@ A Python library for extracting structured data from receipts and invoices and p
 
 
 **CLI**
-- <img src="https://api.iconify.design/devicon:clickhouse.svg" width="16" height="16"> Click — CLI commands (`serve`, `add`, `list`, `get`, `delete`, `projects`)
+- <img src="https://api.iconify.design/devicon:python.svg" width="16" height="16"> argparse — flag-based CLI (`--ui`, `--file`, `--batch`, `--ustva`, `--type`, `--db`, `--version`)
 
 **Packaging**
 - <img src="https://api.iconify.design/devicon:pypi.svg" width="16" height="16"> PyPI — distributed as an installable Python package
