@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 0.5.6 (2026-03-15)
+
+Supplier drill-down in dashboard category charts
+- **Per-supplier breakdown** — each category bar in the expense and revenue charts can now be expanded to reveal a ranked list of individual suppliers and their totals for the active period (e.g. Software → Adobe €499 · Microsoft €499)
+- **Toggle on click** — clicking a category row with more than one supplier expands an indented breakdown below the bar; clicking again collapses it; categories with a single supplier remain non-interactive and look unchanged
+- **Sorted by amount** — suppliers within the expanded list are ordered by total descending so the largest contributor is always first
+
 ## Version 0.5.5 (2026-03-15)
 
 Extended date parsing to handle non-ISO month tokens in extracted receipt dates
