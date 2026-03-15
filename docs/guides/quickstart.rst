@@ -13,10 +13,11 @@ Process a single receipt
 
    if result.success:
        data = result.data
-       print(f"Vendor : {data.counterparty_name}")
-       print(f"Date   : {data.document_date}")
-       print(f"Total  : {data.total_amount} {data.currency}")
-       print(f"VAT    : {data.vat_amount} ({data.vat_rate}%)")
+       print(f"Vendor   : {data.counterparty.name if data.counterparty else data.vendor}")
+       print(f"Date     : {data.receipt_date}")
+       print(f"Currency : {data.currency}")
+       print(f"Total    : {data.total_amount}")
+       print(f"VAT      : {data.vat_amount} ({data.vat_percentage}%)")
    else:
        print(f"Error: {result.error_message}")
 
@@ -64,8 +65,17 @@ Command-line interface
 
 .. code-block:: bash
 
-   # Process a single file and print JSON output
-   finamt process invoice.pdf
+   # Process a single receipt (specify stem without .pdf, and the containing directory)
+   finamt --file invoice --input-dir /path/to/receipts
 
-   # Show help
+   # Batch-process all PDFs in a directory
+   finamt --batch --input-dir /path/to/receipts
+
+   # Generate a UStVA pre-return for Q4 2025
+   finamt --ustva --year 2025 --quarter 4
+
+   # Start the web UI without opening a browser tab
+   finamt --ui --no-browser
+
+   # Show all flags
    finamt --help

@@ -4,10 +4,10 @@ Agent
 The :class:`~finamt.FinanceAgent` is the main entry point for processing
 receipts. Internally it runs a 4-agent pipeline:
 
-1. **Metadata agent** — document date, type, currency
-2. **Counterparty agent** — vendor / client identification
-3. **Amounts agent** — total, net, VAT, tax rate
-4. **Line items agent** — individual purchased items
+1. **Metadata agent** — receipt date, number, type, category
+2. **Counterparty agent** — vendor / client name, address, VAT ID, tax number
+3. **Amounts agent** — total, VAT amount, VAT rate, net amount, currency
+4. **Line items agent** — individual purchased items with per-item VAT
 
 finamt.agents.agent
 ----------------------

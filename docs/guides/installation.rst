@@ -18,12 +18,6 @@ Install from PyPI
 Optional extras
 ~~~~~~~~~~~~~~~
 
-Install the web UI backend (FastAPI + Uvicorn):
-
-.. code-block:: bash
-
-   pip install "finamt[ui]"
-
 Install development tools:
 
 .. code-block:: bash

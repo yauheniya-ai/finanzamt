@@ -7,65 +7,114 @@ placed in the working directory.
 Environment variables
 ---------------------
 
+All variables use the ``FINAMT_`` prefix and can be placed in a ``.env``
+file in the working directory or exported to the shell environment.
+
+**Extraction agents (4-agent pipeline)**
+
 .. list-table::
    :header-rows: 1
-   :widths: 30 15 55
+   :widths: 35 25 40
 
    * - Variable
      - Default
      - Description
-   * - ``OLLAMA_BASE_URL``
+   * - ``FINAMT_OLLAMA_BASE_URL``
      - ``http://localhost:11434``
      - Base URL of the Ollama API server.
-   * - ``OLLAMA_MODEL``
+   * - ``FINAMT_AGENT_MODEL``
      - ``qwen2.5:7b-instruct-q4_K_M``
-     - Default model used for all extraction agents.
-   * - ``OLLAMA_TIMEOUT``
-     - ``120``
-     - HTTP timeout in seconds for Ollama requests.
-   * - ``DB_PATH``
-     - ``finamt.db``
-     - Path to the SQLite database file.
-   * - ``OCR_ENGINE``
-     - ``paddle``
-     - Primary OCR engine (``paddle`` or ``tesseract``).
-   * - ``OCR_TIMEOUT``
+     - Model used by all four extraction agents.
+   * - ``FINAMT_AGENT_TIMEOUT``
      - ``60``
-     - Timeout in seconds for a single OCR pass.
+     - HTTP timeout in seconds per agent LLM call.
+   * - ``FINAMT_AGENT_NUM_CTX``
+     - ``4096``
+     - Context window size (tokens) for agent LLM calls.
+   * - ``FINAMT_AGENT_MAX_RETRIES``
+     - ``2``
+     - Retry attempts on failed agent LLM requests.
+
+**OCR and PDF**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 35 25 40
+
+   * - Variable
+     - Default
+     - Description
+   * - ``FINAMT_OCR_TIMEOUT``
+     - ``60``
+     - Seconds to wait for PaddleOCR before falling back to Tesseract.
+   * - ``FINAMT_TESSERACT_CMD``
+     - ``tesseract``
+     - Path to the Tesseract binary; useful when Tesseract is not on ``PATH``.
+   * - ``FINAMT_PDF_DPI``
+     - ``150``
+     - DPI resolution used when rendering PDF pages to images.
+
+**Data storage**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 35 25 40
+
+   * - Variable
+     - Default
+     - Description
+   * - ``FINAMT_PROJECT``
+     - ``default``
+     - Active project name; data is stored under ``~/.finamt/<project>/``.
 
 ``.env`` file example
 ---------------------
 
-Copy ``env.example`` from the repository and adjust it to your setup:
+Copy ``env.example`` from the repository root and adjust it to your setup:
 
 .. code-block:: ini
 
-   OLLAMA_BASE_URL=http://localhost:11434
-   OLLAMA_MODEL=qwen2.5:7b-instruct-q4_K_M
-   OLLAMA_TIMEOUT=120
-   DB_PATH=./data/finamt.db
-   OCR_ENGINE=paddle
-   OCR_TIMEOUT=60
+   FINAMT_OLLAMA_BASE_URL=http://localhost:11434
+   FINAMT_AGENT_MODEL=qwen2.5:7b-instruct-q4_K_M
+   FINAMT_AGENT_TIMEOUT=60
+   FINAMT_OCR_TIMEOUT=60
+   FINAMT_PROJECT=default
 
 Programmatic configuration
 ---------------------------
 
-You can also pass configuration directly when constructing the agent:
+Pass ``Config`` and / or ``AgentsConfig`` directly when constructing the agent:
 
 .. code-block:: python
 
-   from finamt import FinanceAgent, Config, ModelConfig
+   from finamt import FinanceAgent, Config
+   from finamt.agents.config import AgentsConfig
 
    config = Config(
-       model=ModelConfig(
-           base_url="http://localhost:11434",
-           model_name="llama3.2:3b",
-           timeout=60,
-       ),
-       db_path="./receipts.db",
+       ollama_base_url="http://localhost:11434",
+       ocr_timeout=90,
+       pdf_dpi=200,
    )
 
-   agent = FinanceAgent(config=config)
+   agents_cfg = AgentsConfig(
+       agent_model="llama3.2",
+       agent_timeout=90,
+   )
+
+   agent = FinanceAgent(config=config, agents_cfg=agents_cfg)
+
+Data is stored under the named project directory by default:
+
+.. code-block:: python
+
+   # Use a custom project name (data stored at ~/.finamt/work/)
+   agent = FinanceAgent(project="work")
+
+   # Provide an explicit DB path
+   agent = FinanceAgent(db_path="/data/myreceipts.db")
+
+   # Disable persistence entirely
+   agent = FinanceAgent(db_path=None)
 
 Using a different model
 -----------------------
@@ -79,8 +128,9 @@ models are faster but may extract data less accurately:
 
 .. code-block:: python
 
-   from finamt import FinanceAgent, Config, ModelConfig
+   from finamt import FinanceAgent
+   from finamt.agents.config import AgentsConfig
 
    agent = FinanceAgent(
-       config=Config(model=ModelConfig(model_name="llama3.2:3b"))
+       agents_cfg=AgentsConfig(agent_model="llama3.2:3b")
    )
