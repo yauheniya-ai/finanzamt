@@ -1,38 +1,30 @@
-/* ── Brand tokens ── */
 :root {
-  --red:   #ef4444; /* red-500  */
-  --amber: #fbbf24; /* amber-400 */
-  --black: #111111;
-  --white: #ffffff;
+  --red:   #ef4444;
+  --red-h: #dc2626;
+  --amber: #fbbf24;
 }
 
-/* ════════════════════════════════
-   TOP NAV BAR — black bg, amber accents
-   ════════════════════════════════ */
-.wy-nav-top {
-  background: #000000;
+/* ── Top search bar ── */
+.wy-side-nav-search {
+  background: #ffffff;
 }
 
-/* Home icon + "finamt" title — amber on black */
-.wy-nav-top a,
-.wy-nav-top a:visited,
-.wy-nav-top a:hover {
-  color: var(--amber) !important;
+.wy-side-nav-search > a img.logo {
+  max-height: 40px;
 }
 
-/* ════════════════════════════════
-   SIDEBAR — amber-400 bg throughout,
-   NO gray anywhere
-   ════════════════════════════════ */
+.wy-side-nav-search input[type=text] {
+  border: 1px solid #000000;
+  border-radius: 4px;
+}
+
+/* ── Sidebar ── */
 .wy-nav-side,
 .wy-menu-vertical,
 .wy-menu-vertical li,
 .wy-menu-vertical ul,
-.wy-menu-vertical ul li,
-.wy-menu-vertical ul ul,
 .wy-menu-vertical li.current,
 .wy-menu-vertical li.current ul,
-.wy-menu-vertical li.current li,
 .wy-menu-vertical li.toctree-l1,
 .wy-menu-vertical li.toctree-l2,
 .wy-menu-vertical li.toctree-l3,
@@ -40,58 +32,38 @@
   background: var(--amber) !important;
 }
 
-/* Search bar area stays black */
-.wy-side-nav-search {
-  background: #000000 !important;
-}
-
-/* Project title — amber on black in search area */
-.wy-side-nav-search > a,
-.wy-side-nav-search > a:hover {
-  color: var(--amber) !important;
-}
-
-/* Search input */
-.wy-side-nav-search input[type=text] {
-  background: #ffffff;
-  color: #000000;
-  border: 2px solid #000000;
-  border-radius: 4px;
-}
-
-/* ── All sidebar text — black on amber ── */
 .wy-menu-vertical a,
 .wy-menu-vertical a:visited,
-.wy-menu-vertical li span,
 .wy-menu-vertical p,
 .wy-menu-vertical p.caption,
+.wy-menu-vertical li span,
 .wy-menu-vertical label {
   color: #000000 !important;
   background: transparent !important;
+  text-decoration: none !important;
 }
 
-/* Section captions (GETTING STARTED, etc.) */
 .wy-menu-vertical p.caption {
   font-weight: 700;
-  letter-spacing: 0.05em;
 }
 
-/* ── Hover — red bg, white text (never black-on-black) ── */
 .wy-menu-vertical a:hover {
   background: var(--red) !important;
-  color: var(--white) !important;
+  color: #ffffff !important;
 }
 
-/* ── Active / current page — red bg, white text ── */
 .wy-menu-vertical li.current > a,
-.wy-menu-vertical li.on > a,
-.wy-menu-vertical li.current > a:hover {
+.wy-menu-vertical li.on > a {
   background: var(--red) !important;
-  color: var(--white) !important;
+  color: #ffffff !important;
   font-weight: 600;
 }
 
-/* Expanded sub-items under current page — keep amber, black text */
+.wy-menu-vertical li.current > a .toctree-expand,
+.wy-menu-vertical li.on > a .toctree-expand {
+  color: #ffffff !important;
+}
+
 .wy-menu-vertical li.current ul li a,
 .wy-menu-vertical li.current ul li a:visited {
   background: var(--amber) !important;
@@ -100,44 +72,33 @@
 
 .wy-menu-vertical li.current ul li a:hover {
   background: var(--red) !important;
-  color: var(--white) !important;
+  color: #ffffff !important;
 }
 
-/* Expand/collapse toggle icons */
-.wy-menu-vertical li button,
-.wy-menu-vertical .toctree-expand {
+/* ── Top nav bar ── */
+.wy-nav-top {
+  background: #ffffff;
+  color: #000000;
+}
+
+.wy-nav-top a {
   color: #000000 !important;
 }
 
-.wy-menu-vertical li.current > a .toctree-expand,
-.wy-menu-vertical li.on > a .toctree-expand {
-  color: var(--white) !important;
+/* hamburger icon on mobile */
+.wy-nav-top i {
+  color: #000000;
 }
 
-/* ════════════════════════════════
-   MAIN CONTENT — black links
-   ════════════════════════════════ */
+/* ── Main content links ── */
 a,
-a:visited {
-  color: #000000 !important;
-  text-decoration: underline;
-  text-decoration-color: var(--red);
-  text-underline-offset: 2px;
-}
-
+a:visited,
 a:hover {
-  color: var(--red) !important;
-  text-decoration-color: var(--red);
+  color: #000000 !important;
+  text-decoration: none !important;
 }
 
-/* Breadcrumb home icon */
-.wy-breadcrumbs a,
-.wy-breadcrumbs a:visited {
-  color: var(--red) !important;
-  text-decoration: none;
-}
-
-/* Headings */
+/* ── Headings ── */
 .rst-content h1 {
   border-bottom: 2px solid var(--red);
   padding-bottom: 6px;
@@ -148,12 +109,11 @@ a:hover {
   padding-bottom: 4px;
 }
 
-/* Code blocks */
+/* ── Code ── */
 .highlight {
   border-left: 3px solid var(--red);
 }
 
-/* Inline code */
 .rst-content code,
 .rst-content tt {
   color: var(--red);
@@ -161,54 +121,34 @@ a:hover {
   background: #fff7f7;
 }
 
-/* ════════════════════════════════
-   ADMONITIONS
-   ════════════════════════════════ */
-.rst-content .note .admonition-title {
-  background: #000000;
-  color: var(--amber);
-}
-
-.rst-content .warning .admonition-title {
-  background: var(--red);
-  color: var(--white);
-}
-
-/* ════════════════════════════════
-   BUTTONS — black bg, amber text
-   ════════════════════════════════ */
+/* ── Buttons ── */
 .btn-neutral,
-.btn-neutral:visited {
-  background: #000000 !important;
-  color: var(--amber) !important;
-  border: 1px solid var(--amber) !important;
+.btn-neutral:visited,
+.btn-neutral:hover {
+  background: var(--red) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .btn-neutral:hover {
-  background: var(--red) !important;
-  color: var(--white) !important;
-  border-color: var(--red) !important;
+  background: var(--red-h) !important;
 }
 
-/* ════════════════════════════════
-   VERSION / RTD FOOTER STRIP
-   ════════════════════════════════ */
+/* ── RTD version strip ── */
 .rst-versions {
-  background: #000000 !important;
+  background: #000000;
   border-top: 2px solid var(--amber);
 }
 
-.rst-versions .rst-current-version {
-  background: #000000 !important;
-  color: var(--amber) !important;
-}
-
+.rst-versions .rst-current-version,
 .rst-versions a,
 .rst-versions span {
   color: var(--amber) !important;
+  background: #000000 !important;
 }
 
 .rst-versions .rst-current-version:hover {
   background: var(--red) !important;
-  color: var(--white) !important;
+  color: #ffffff !important;
 }

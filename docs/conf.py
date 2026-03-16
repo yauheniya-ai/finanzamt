@@ -85,11 +85,11 @@ myst_enable_extensions = [
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
-
+html_logo = "https://raw.githubusercontent.com/yauheniya-ai/finamt/main/.github/images/finamt-wordmark.svg"
 html_theme_options = {
     "navigation_depth": 4,
     "titles_only": False,
-    "logo_only": False,
+    "logo_only": True,
     "display_version": True,
     "prev_next_buttons_location": "bottom",
     "collapse_navigation": False,
