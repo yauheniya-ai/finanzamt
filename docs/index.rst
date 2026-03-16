@@ -13,8 +13,8 @@ finamt
    :target: https://pypi.org/project/finamt/
    :alt: PyPI version
 
-.. image:: https://img.shields.io/pypi/dm/finamt
-   :target: https://pypistats.org/packages/finamt
+.. image:: https://static.pepy.tech/badge/finamt/month
+   :target: https://pepy.tech/project/finamt
    :alt: PyPI Downloads
 
 .. image:: https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml/badge.svg
