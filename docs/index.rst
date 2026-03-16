@@ -1,17 +1,37 @@
 finamt
 =========
 
-.. image:: https://img.shields.io/pypi/v/finamt?color=blue&label=PyPI
-   :target: https://pypi.org/project/finamt/
-   :alt: PyPI version
-
 .. image:: https://img.shields.io/badge/python-3.10+-blue.svg
    :target: https://www.python.org/downloads/
    :alt: Python 3.10+
 
-.. image:: https://img.shields.io/badge/License-MIT-yellow.svg
+.. image:: https://img.shields.io/badge/License-MIT-purple.svg
    :target: https://opensource.org/licenses/MIT
    :alt: License: MIT
+
+.. image:: https://img.shields.io/pypi/v/finamt?color=blue&label=PyPI
+   :target: https://pypi.org/project/finamt/
+   :alt: PyPI version
+
+.. image:: https://img.shields.io/pypi/dm/finamt
+   :target: https://pypistats.org/packages/finamt
+   :alt: PyPI Downloads
+
+.. image:: https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml/badge.svg
+   :target: https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml
+   :alt: Tests
+
+.. image:: https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/yauheniya-ai/d09f6edc7b1928aeea1fbde834a6080b/raw/coverage.json
+   :target: https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml
+   :alt: Coverage
+
+.. image:: https://img.shields.io/github/last-commit/yauheniya-ai/finamt
+   :target: https://github.com/yauheniya-ai/finamt/commits/main
+   :alt: GitHub last commit
+
+.. image:: https://readthedocs.org/projects/finamt/badge/?version=latest
+   :target: https://readthedocs.org/projects/finamt/
+   :alt: Documentation Status
 
 A Python library for extracting structured data from receipts and invoices
 and preparing essential German VAT statements (UStVA).
