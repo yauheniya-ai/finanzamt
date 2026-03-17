@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.7.3 (2026-03-17)
+
+- **Dashboard: single-supplier categories now expandable** — category rows in the chart previously showed a chevron and drill-down only when there were multiple suppliers; single-supplier categories showed no chevron and no way to see which supplier the total belonged to; now every category row is clickable and reveals the supplier breakdown regardless of count
+
 ## Version 0.7.2 (2026-03-17)
 
 Counterparty management completely redesigned — replaced error-prone deduplication with a simple orphan-cleanup model
