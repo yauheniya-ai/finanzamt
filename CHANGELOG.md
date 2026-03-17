@@ -1,8 +1,19 @@
 # Changelog
 
+## Version 0.7.4 (2026-03-17)
+
+Rebuild frontend static assets
+- **Frontend bundle updated** — static UI assets rebuilt to include all 0.7.3 changes (single-supplier drill-down, verified counterparty re-linking fix)
+- **Sidebar: supplier groups start collapsed** — supplier sub-rows under each category now load closed; click to expand; previously they loaded open which was noisy with many receipts
+- **Sidebar: supplier-grouped receipt list** — receipts are grouped by supplier within each category; supplier row shows count (left) and total (right); individual receipts show as a single line with date, truncated receipt number, and amount
+- **Sidebar: size hierarchy corrected** — section total > category total > supplier total > per-receipt amount
+
+
+
 ## Version 0.7.3 (2026-03-17)
 
 - **Dashboard: single-supplier categories now expandable** — category rows in the chart previously showed a chevron and drill-down only when there were multiple suppliers; single-supplier categories showed no chevron and no way to see which supplier the total belonged to; now every category row is clickable and reveals the supplier breakdown regardless of count
+- **Fix: "Select from verified" created duplicates instead of re-linking** — selecting a verified counterparty from the picker only copied its field values into the receipt draft; on save, the backend applied those values to the receipt's current (old) counterparty row, leaving the original verified CP untouched but producing a second identical `verified=1` row; now the frontend sends `counterparty_id` of the selected CP, the backend re-points the receipt to that existing row and skips field overwrites, and the old row is cleaned up as an orphan on the next DB open
 
 ## Version 0.7.2 (2026-03-17)
 

@@ -477,6 +477,20 @@ class SQLiteRepository:
         ).fetchone()
         cp_id = cp_row["counterparty_id"] if cp_row else None
 
+        # If the caller specifies an existing counterparty to link to, re-point the
+        # receipt to that CP and skip all field-level CP updates — the selected CP's
+        # data is already correct as-is in the DB.  The old CP becomes an orphan and
+        # will be removed by _cleanup_orphaned_counterparties on the next DB open.
+        skip_cp_field_updates = False
+        if fields.get("counterparty_id"):
+            new_cp_id = str(fields["counterparty_id"])
+            self._exec(
+                "UPDATE receipts SET counterparty_id = ? WHERE id = ?",
+                (new_cp_id, receipt_id),
+            )
+            cp_id = new_cp_id  # used by counterparty_verified logic below
+            skip_cp_field_updates = True
+
         # Collect all counterparty field changes
         # vat_id and tax_number may be explicitly cleared (set to null/empty),
         # so include them whenever the key is present — even if the value is None.
@@ -496,7 +510,7 @@ class SQLiteRepository:
                 if k in addr:
                     cp_updates[k] = addr[k]
 
-        if cp_updates:
+        if cp_updates and not skip_cp_field_updates:
             if cp_id:
                 # Edit the counterparty row directly.  All receipts sharing this
                 # counterparty will reflect the change — which is the desired
