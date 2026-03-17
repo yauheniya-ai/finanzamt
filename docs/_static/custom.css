@@ -1,6 +1,7 @@
 :root {
   --red:   #ef4444;
   --red-h: #dc2626;
+  --red-hh: #B91C1C;
   --amber: #fbbf24;
 }
 
@@ -133,7 +134,7 @@ a.btn-neutral:visited,
 a.btn-neutral:hover {
   background: var(--red) !important;
   color: #ffffff !important;
-  border: none !important;
+  border: 1px solid var(--red-hh) !important;
   box-shadow: none !important;
   text-decoration: none !important;
 }
@@ -141,6 +142,7 @@ a.btn-neutral:hover {
 .btn-neutral:hover,
 a.btn-neutral:hover {
   background: var(--red-h) !important;
+  border: 1px solid var(--red-hh) !important;
 }
 
 /* ── Headings ── */
