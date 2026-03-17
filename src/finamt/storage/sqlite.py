@@ -53,7 +53,7 @@ class SQLiteRepository:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._init_schema()
-        self._deduplicate_counterparties()
+        self._cleanup_orphaned_counterparties()
 
     # ------------------------------------------------------------------
     # Context manager
@@ -266,65 +266,24 @@ class SQLiteRepository:
             self._conn.commit()
         return cp
 
-    def _deduplicate_counterparties(self) -> None:
+    def _cleanup_orphaned_counterparties(self) -> None:
+        """Delete counterparty rows not linked to any receipt.
+
+        An orphan is created when the user applies a verified counterparty to
+        a receipt — the auto-extracted row loses its only reference and should
+        be removed.  This is the only automatic counterparty housekeeping;
+        everything else is driven by explicit user actions in the UI.
         """
-        One-time deduplication: for each group of counterparties that share
-        the same VAT-ID (if present) or same name, keep the best row
-        (verified preferred, then oldest) and repoint all receipt references
-        to it, then delete only UNVERIFIED extras.
-        Verified rows are never deleted — they represent user-confirmed data.
-        Called automatically on every DB open — safe to run repeatedly.
-        """
-        # Collect all groups with more than one member
-        groups = self._conn.execute(
-            """
-            SELECT COALESCE(NULLIF(TRIM(vat_id), ''), LOWER(TRIM(name))) AS key
-            FROM counterparties
-            GROUP BY key
-            HAVING COUNT(*) > 1
-            """
-        ).fetchall()
-        if not groups:
-            return
         with self._lock:
-            for grp in groups:
-                key = grp["key"]
-                # Canonical = verified row (if any), else oldest unverified row
-                canonical = self._conn.execute(
-                    """
-                    SELECT id FROM counterparties
-                    WHERE COALESCE(NULLIF(TRIM(vat_id), ''), LOWER(TRIM(name))) = ?
-                    ORDER BY verified DESC, created_at ASC
-                    LIMIT 1
-                    """,
-                    (key,),
-                ).fetchone()
-                if canonical is None:
-                    continue
-                canonical_id = canonical["id"]
-                # Reroute receipts from UNVERIFIED duplicates to canonical
-                self._conn.execute(
-                    """
-                    UPDATE receipts SET counterparty_id = ?
-                    WHERE counterparty_id IN (
-                        SELECT id FROM counterparties
-                        WHERE COALESCE(NULLIF(TRIM(vat_id), ''), LOWER(TRIM(name))) = ?
-                          AND id != ?
-                          AND verified = 0
-                    )
-                    """,
-                    (canonical_id, key, canonical_id),
+            self._conn.execute(
+                """
+                DELETE FROM counterparties
+                WHERE id NOT IN (
+                    SELECT counterparty_id FROM receipts
+                    WHERE counterparty_id IS NOT NULL
                 )
-                # Delete only UNVERIFIED duplicates — never touch verified rows
-                self._conn.execute(
-                    """
-                    DELETE FROM counterparties
-                    WHERE COALESCE(NULLIF(TRIM(vat_id), ''), LOWER(TRIM(name))) = ?
-                      AND id != ?
-                      AND verified = 0
-                    """,
-                    (key, canonical_id),
-                )
+                """
+            )
             self._conn.commit()
 
     def _row_to_counterparty(self, row: sqlite3.Row) -> Counterparty:
@@ -539,46 +498,14 @@ class SQLiteRepository:
 
         if cp_updates:
             if cp_id:
-                # If the counterparty is shared with other receipts, clone it
-                # so that only THIS receipt is affected by the edit.
-                other_refs = self._conn.execute(
-                    "SELECT COUNT(*) FROM receipts WHERE counterparty_id = ? AND id != ?",
-                    (cp_id, receipt_id),
-                ).fetchone()[0]
-                if other_refs > 0:
-                    import uuid as _uuid_cp
-                    old_row = self._conn.execute(
-                        "SELECT * FROM counterparties WHERE id = ?", (cp_id,)
-                    ).fetchone()
-                    clone_id = str(_uuid_cp.uuid4())
-                    self._exec(
-                        """INSERT INTO counterparties
-                           (id, name, street_and_number, address_supplement, postcode, city, state,
-                            country, tax_number, vat_id, verified, created_at)
-                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                        (
-                            clone_id,
-                            old_row["name"],
-                            old_row["street_and_number"],
-                            old_row["address_supplement"],
-                            old_row["postcode"],
-                            old_row["city"],
-                            old_row["state"],
-                            old_row["country"],
-                            old_row["tax_number"],
-                            old_row["vat_id"],
-                            0,  # clone starts unverified
-                            self._now(),
-                        ),
-                    )
-                    self._exec(
-                        "UPDATE receipts SET counterparty_id = ? WHERE id = ?",
-                        (clone_id, receipt_id),
-                    )
-                    cp_id = clone_id
-                # Update this receipt's (possibly cloned) counterparty row
-                set_clause = ", ".join(f"{col} = ?" for col in cp_updates)
-                params = tuple(cp_updates.values()) + (cp_id,)
+                # Edit the counterparty row directly.  All receipts sharing this
+                # counterparty will reflect the change — which is the desired
+                # behaviour (if OpenAI was mis-labelled everywhere, fix it once).
+                # Mark verified=1 so the orphan-cleanup routine never removes it
+                # while it is still referenced.
+                merged_updates = {**cp_updates, "verified": 1}
+                set_clause = ", ".join(f"{col} = ?" for col in merged_updates)
+                params = tuple(merged_updates.values()) + (cp_id,)
                 self._exec(
                     f"UPDATE counterparties SET {set_clause} WHERE id = ?", params
                 )
@@ -659,21 +586,14 @@ class SQLiteRepository:
         return self.exists(receipt_id)
 
     def list_verified_counterparties(self) -> list[dict]:
-        """Return deduplicated verified counterparties (one per VAT-ID or name, oldest kept)."""
+        """Return all verified counterparties sorted alphabetically by name."""
         rows = self._conn.execute(
-            """SELECT c.id, c.name, c.street_and_number, c.address_supplement,
-                      c.postcode, c.city, c.state, c.country,
-                      c.tax_number, c.vat_id, c.verified
-               FROM counterparties c
-               WHERE c.verified = 1
-                 AND c.created_at = (
-                     SELECT MIN(c2.created_at)
-                     FROM counterparties c2
-                     WHERE c2.verified = 1
-                       AND COALESCE(NULLIF(c2.vat_id, ''), c2.name)
-                         = COALESCE(NULLIF(c.vat_id,  ''), c.name)
-                 )
-               ORDER BY c.name ASC"""
+            """SELECT id, name, street_and_number, address_supplement,
+                      postcode, city, state, country,
+                      tax_number, vat_id, verified
+               FROM counterparties
+               WHERE verified = 1
+               ORDER BY name ASC"""
         ).fetchall()
         return [
             {
@@ -701,13 +621,13 @@ class SQLiteRepository:
         )
 
     def list_all_counterparties(self) -> list[dict]:
-        """Return every counterparty row ordered by name then created_at."""
+        """Return every counterparty row sorted alphabetically by name."""
         rows = self._conn.execute(
             """SELECT id, name, street_and_number, address_supplement,
                       postcode, city, state, country,
                       tax_number, vat_id, verified, created_at
                FROM counterparties
-               ORDER BY name ASC, created_at ASC"""
+               ORDER BY name ASC"""
         ).fetchall()
         return [
             {
@@ -732,9 +652,8 @@ class SQLiteRepository:
     def update_counterparty(self, cp_id: str, fields: dict) -> bool:
         """Update editable fields of a counterparty. Returns True if a row was updated.
 
-        Any user edit automatically marks the row as verified=1 (unless the caller
-        explicitly sets verified=False) so that the deduplication routine never
-        silently discards a manually corrected counterparty.
+        Any edit automatically marks the row verified=1 so orphan-cleanup never
+        removes a counterparty the user is actively managing.
         """
         allowed = {
             "name", "tax_number", "vat_id", "verified",
@@ -743,9 +662,7 @@ class SQLiteRepository:
         updates = {k: v for k, v in fields.items() if k in allowed}
         if not updates:
             return False
-        # Auto-verify on user edit unless the caller explicitly sets verified=False
-        if "verified" not in updates:
-            updates["verified"] = 1
+        updates["verified"] = 1  # editing always marks as verified
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [cp_id]
         cur = self._exec(

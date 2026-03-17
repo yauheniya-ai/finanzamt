@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 0.7.2 (2026-03-17)
+
+Counterparty management completely redesigned — replaced error-prone deduplication with a simple orphan-cleanup model
+- **`_deduplicate_counterparties()` removed** — the automatic dedup that ran on every DB open was the source of every regression in this release; it silently discarded user edits and renames by deleting rows it considered duplicates
+- **`_cleanup_orphaned_counterparties()` added** — the only automatic housekeeping; runs on DB open and deletes counterparty rows not referenced by any receipt; no silent re-pointing of receipts
+- **Clone-on-edit removed** — editing a counterparty through the receipt panel now updates the row directly; all receipts sharing the same counterparty reflect the change (the expected behaviour when correcting a mis-labelled supplier)
+- **`list_verified_counterparties()` simplified** — plain `SELECT … WHERE verified = 1 ORDER BY name ASC`; no more complex self-join dedup window
+- **`update_counterparty()` simplified** — updates the allowed fields and always sets `verified = 1`; no more SUBSTANTIVE-field detection
+- **Explorer save uses DB response** — `handleSave` in the Counterparty Explorer reads the API response body to update local state, so the displayed data always matches the database
+- **PDF iframe suppressed when explorer is open** — native browser PDF controls (rendered outside z-index) no longer block the delete-confirmation Yes/No buttons
+
 ## Version 0.7.1 (2026-03-17)
 
 Rebuild frontend static assets
