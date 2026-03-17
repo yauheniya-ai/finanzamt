@@ -125,6 +125,19 @@ a:hover,
   text-decoration: none !important;
 }
 
+/* ── Hover — red on main content only, sidebar excluded ── */
+.wy-nav-content-wrap a:hover,
+.rst-content a:hover,
+.wy-breadcrumbs a:hover,
+.footer a:hover,
+.rst-content .reference.external:hover,
+.rst-content .reference.internal:hover,
+.rst-content dl dt a:hover,
+.rst-content .toctree-wrapper a:hover {
+  color: var(--red) !important;
+  text-decoration: none !important;
+}
+
 /* ── Buttons — white text on red, no underline ── */
 .btn-neutral,
 .btn-neutral:visited,
