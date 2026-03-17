@@ -99,19 +99,24 @@ class Address:
     Structured postal address.
 
     All fields are optional because OCR and LLM extraction may not find them.
+    ``address_supplement`` captures a secondary address line (e.g. building name,
+    campus, suite) that appears separately from the street and number.
     """
 
-    street_and_number: Optional[str] = None
-    postcode:          Optional[str] = None
-    city:              Optional[str] = None
-    state:             Optional[str] = None
-    country:           Optional[str] = None
+    street_and_number:  Optional[str] = None
+    address_supplement: Optional[str] = None
+    postcode:           Optional[str] = None
+    city:               Optional[str] = None
+    state:              Optional[str] = None
+    country:            Optional[str] = None
 
     def __str__(self) -> str:
         """Return a compact one-line representation for display."""
         parts = []
         if self.street_and_number:
             parts.append(self.street_and_number)
+        if self.address_supplement:
+            parts.append(self.address_supplement)
         if self.postcode or self.city:
             parts.append(f"{self.postcode or ''} {self.city or ''}".strip())
         if self.state:
@@ -122,21 +127,23 @@ class Address:
 
     def to_dict(self) -> dict:
         return {
-            "street_and_number": self.street_and_number,
-            "postcode":          self.postcode,
-            "city":              self.city,
-            "state":             self.state,
-            "country":           self.country,
+            "street_and_number":  self.street_and_number,
+            "address_supplement": self.address_supplement,
+            "postcode":           self.postcode,
+            "city":               self.city,
+            "state":              self.state,
+            "country":            self.country,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "Address":
         return cls(
-            street_and_number= d.get("street_and_number"),
-            postcode=          d.get("postcode"),
-            city=              d.get("city"),
-            state=             d.get("state"),
-            country=           d.get("country"),
+            street_and_number=  d.get("street_and_number"),
+            address_supplement= d.get("address_supplement"),
+            postcode=           d.get("postcode"),
+            city=               d.get("city"),
+            state=              d.get("state"),
+            country=            d.get("country"),
         )
 
     @classmethod

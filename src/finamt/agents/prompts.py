@@ -38,11 +38,12 @@ AGENT2_TEMPLATE = """\
 Extract the {party} from the receipt text below.
 Return only this JSON, no other text:
 {{"name": null, "vat_id": null, "tax_number": null, "street_and_number": null, \
-"postcode": null, "city": null, "state": null, "country": null}}
+"address_supplement": null, "postcode": null, "city": null, "state": null, "country": null}}
 
 Rules: name = actual business/person name, \
 vat_id = USt-IdNr. e.g. DE123456789, \
-tax_number = Steuernummer e.g. 123/456/78901. \
+tax_number = Steuernummer e.g. 123/456/78901, \
+address_supplement = secondary address line e.g. building name or campus (null if none). \
 
 
 TEXT:

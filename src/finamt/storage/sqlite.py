@@ -86,13 +86,14 @@ class SQLiteRepository:
     def _migrate(self) -> None:
         """Idempotent column/table additions for schema evolution."""
         for tbl, col, typedef in [
-            ("receipt_items",      "position",   "INTEGER"),
-            ("receipt_items",      "vat_amount",  "TEXT"),
-            ("counterparties",     "verified",    "INTEGER DEFAULT 0"),
-            ("counterparties",     "street_and_number", "TEXT"),
-            ("counterparties",     "state",       "TEXT"),
-            ("receipt_vat_splits", "net_amount",  "TEXT"),
-            ("receipts",           "currency",    "TEXT DEFAULT 'EUR'"),
+            ("receipt_items",      "position",            "INTEGER"),
+            ("receipt_items",      "vat_amount",           "TEXT"),
+            ("counterparties",     "verified",             "INTEGER DEFAULT 0"),
+            ("counterparties",     "street_and_number",    "TEXT"),
+            ("counterparties",     "address_supplement",   "TEXT"),
+            ("counterparties",     "state",                "TEXT"),
+            ("receipt_vat_splits", "net_amount",           "TEXT"),
+            ("receipts",           "currency",             "TEXT DEFAULT 'EUR'"),
         ]:
             try:
                 self._conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {typedef}")
@@ -132,6 +133,7 @@ class SQLiteRepository:
                 id                  TEXT PRIMARY KEY,
                 name                TEXT,
                 street_and_number   TEXT,
+                address_supplement  TEXT,
                 postcode            TEXT,
                 city                TEXT,
                 state               TEXT,
@@ -247,12 +249,13 @@ class SQLiteRepository:
         # No existing match — insert
         self._exec(
             """INSERT INTO counterparties
-               (id, name, street_and_number, postcode, city, state, country,
+               (id, name, street_and_number, address_supplement, postcode, city, state, country,
                 tax_number, vat_id, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 cp.id, cp.name,
-                cp.address.street_and_number, cp.address.postcode, cp.address.city,
+                cp.address.street_and_number, cp.address.address_supplement,
+                cp.address.postcode, cp.address.city,
                 cp.address.state, cp.address.country,
                 cp.tax_number, cp.vat_id, self._now(),
             ),
@@ -323,6 +326,7 @@ class SQLiteRepository:
             name=row["name"],
             address=Address(
                 street_and_number=row["street_and_number"],
+                address_supplement=row["address_supplement"] if "address_supplement" in row.keys() else None,
                 postcode=row["postcode"],
                 city=row["city"],
                 state=row["state"],
@@ -466,7 +470,8 @@ class SQLiteRepository:
         Counterparty fields (applied to the counterparty row owned by this
         receipt): ``counterparty_name``, ``vat_id``, ``tax_number``,
         and address sub-fields via an ``address`` dict with keys
-        ``street_and_number``, ``postcode``, ``city``, ``state``, ``country``.
+        ``street_and_number``, ``address_supplement``, ``postcode``,
+        ``city``, ``state``, ``country``.
 
         Returns True if the receipt row was found.
         """
@@ -479,7 +484,7 @@ class SQLiteRepository:
             "vat_id":            "vat_id",
             "tax_number":        "tax_number",
         }
-        ADDR_FIELDS = {"street_and_number", "postcode", "city", "state", "country"}
+        ADDR_FIELDS = {"street_and_number", "address_supplement", "postcode", "city", "state", "country"}
 
         receipt_updates = {k: v for k, v in fields.items() if k in RECEIPT_MUTABLE}
 
@@ -531,13 +536,14 @@ class SQLiteRepository:
                 new_cp_id = str(uuid.uuid4())
                 self._exec(
                     """INSERT INTO counterparties
-                       (id, name, street_and_number, postcode, city, state, country,
+                       (id, name, street_and_number, address_supplement, postcode, city, state, country,
                         tax_number, vat_id, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         new_cp_id,
                         cp_updates.get("name"),
                         cp_updates.get("street_and_number"),
+                        cp_updates.get("address_supplement"),
                         cp_updates.get("postcode"),
                         cp_updates.get("city"),
                         cp_updates.get("state"),
@@ -603,7 +609,8 @@ class SQLiteRepository:
     def list_verified_counterparties(self) -> list[dict]:
         """Return deduplicated verified counterparties (one per VAT-ID or name, oldest kept)."""
         rows = self._conn.execute(
-            """SELECT c.id, c.name, c.street_and_number, c.postcode, c.city, c.state, c.country,
+            """SELECT c.id, c.name, c.street_and_number, c.address_supplement,
+                      c.postcode, c.city, c.state, c.country,
                       c.tax_number, c.vat_id, c.verified
                FROM counterparties c
                WHERE c.verified = 1
@@ -624,11 +631,12 @@ class SQLiteRepository:
                 "vat_id":       r["vat_id"],
                 "verified":     bool(r["verified"]),
                 "address": {
-                    "street_and_number": r["street_and_number"],
-                    "postcode":          r["postcode"],
-                    "city":              r["city"],
-                    "state":             r["state"],
-                    "country":           r["country"],
+                    "street_and_number":  r["street_and_number"],
+                    "address_supplement": r["address_supplement"],
+                    "postcode":           r["postcode"],
+                    "city":               r["city"],
+                    "state":              r["state"],
+                    "country":            r["country"],
                 },
             }
             for r in rows
@@ -643,7 +651,8 @@ class SQLiteRepository:
     def list_all_counterparties(self) -> list[dict]:
         """Return every counterparty row ordered by name then created_at."""
         rows = self._conn.execute(
-            """SELECT id, name, street_and_number, postcode, city, state, country,
+            """SELECT id, name, street_and_number, address_supplement,
+                      postcode, city, state, country,
                       tax_number, vat_id, verified, created_at
                FROM counterparties
                ORDER BY name ASC, created_at ASC"""
@@ -657,11 +666,12 @@ class SQLiteRepository:
                 "verified":   bool(r["verified"]),
                 "created_at": r["created_at"],
                 "address": {
-                    "street_and_number": r["street_and_number"],
-                    "postcode":          r["postcode"],
-                    "city":              r["city"],
-                    "state":             r["state"],
-                    "country":           r["country"],
+                    "street_and_number":  r["street_and_number"],
+                    "address_supplement": r["address_supplement"],
+                    "postcode":           r["postcode"],
+                    "city":               r["city"],
+                    "state":              r["state"],
+                    "country":            r["country"],
                 },
             }
             for r in rows
@@ -671,7 +681,7 @@ class SQLiteRepository:
         """Update editable fields of a counterparty. Returns True if a row was updated."""
         allowed = {
             "name", "tax_number", "vat_id", "verified",
-            "street_and_number", "postcode", "city", "state", "country",
+            "street_and_number", "address_supplement", "postcode", "city", "state", "country",
         }
         updates = {k: v for k, v in fields.items() if k in allowed}
         if not updates:
@@ -721,7 +731,7 @@ class SQLiteRepository:
         sql = f"""
             SELECT r.*, rc.raw_text,
                    c.id as cp_id, c.name as cp_name,
-                   c.street_and_number, c.postcode, c.city, c.state, c.country,
+                   c.street_and_number, c.address_supplement, c.postcode, c.city, c.state, c.country,
                    c.tax_number, c.vat_id, COALESCE(c.verified, 0) as verified
             FROM receipts r
             LEFT JOIN receipt_content rc ON rc.receipt_id = r.id
@@ -741,6 +751,7 @@ class SQLiteRepository:
                 name=row["cp_name"],
                 address=Address(
                     street_and_number=row["street_and_number"],
+                    address_supplement=row["address_supplement"] if "address_supplement" in row.keys() else None,
                     postcode=row["postcode"],
                     city=row["city"],
                     state=row["state"],

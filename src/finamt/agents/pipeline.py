@@ -94,7 +94,7 @@ def _validate_agent2(raw: Optional[dict]) -> dict:
         return {}
     result: dict = {}
     for key in ("name", "vat_id", "tax_number", "street_and_number",
-                "postcode", "city", "state", "country"):
+                "address_supplement", "postcode", "city", "state", "country"):
         if v := _str_or_none(raw.get(key)):
             result[key] = v
     return result
@@ -165,11 +165,12 @@ def _build_receipt_data(
     cp: Optional[Counterparty] = None
     if counterparty:
         address = Address(
-            street_and_number= counterparty.get("street_and_number"),
-            postcode=          counterparty.get("postcode"),
-            city=              counterparty.get("city"),
-            state=             counterparty.get("state"),
-            country=           counterparty.get("country"),
+            street_and_number=  counterparty.get("street_and_number"),
+            address_supplement= counterparty.get("address_supplement"),
+            postcode=           counterparty.get("postcode"),
+            city=               counterparty.get("city"),
+            state=              counterparty.get("state"),
+            country=            counterparty.get("country"),
         )
         cp = Counterparty(
             name=       counterparty.get("name"),
@@ -250,7 +251,7 @@ def run_pipeline(
         cfg=           agent_cfg,
         agent_name=    "agent2",
         expected_keys= ["name", "vat_id", "tax_number", "street_and_number",
-                        "postcode", "city", "state", "country"],
+                        "address_supplement", "postcode", "city", "state", "country"],
         debug_dir=     debug_dir,
     )
     counterparty = _validate_agent2(raw2)

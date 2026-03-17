@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 0.7.0 (2026-03-17)
+
+Address supplement field — captures secondary address lines (building name, campus, suite) separately from street and number
+- **`address_supplement` field** — new optional field added to the `Address` dataclass; all existing records remain compatible (populated with `NULL` automatically via idempotent `ALTER TABLE` migration)
+- **Agent 2 prompt updated** — extraction JSON schema now includes `"address_supplement": null`; the rule instructs the model to extract secondary address lines (e.g. "Citywest Business Campus") and leave it `null` when none is present
+- **Pipeline updated** — `_validate_agent2` key list and `expected_keys` for the LLM call include `address_supplement`; `_build_receipt_data` passes it through to `Address`
+- **Database migration** — `address_supplement TEXT` column added to `counterparties` via the existing idempotent `ALTER TABLE` loop; all INSERT, SELECT, list, and update paths updated; `update_counterparty()` and `update()` allowed-field sets both include the new column
+- **Frontend types** — `Address` type in `Sidebar.tsx` and `VerifiedCp`/`CpDraft` types in `PreviewPanel.tsx` extended with `address_supplement: string | null`
+- **UI** — address supplement is shown in the receipt preview address section (between street and postcode/city), in the Counterparty Explorer list view, and in both edit forms (receipt-level and explorer inline); edit draft state and save payloads include the field
+- **Localisation** — `cp_field_address_supplement` and `field_address_supplement` keys added (EN: "Address Supplement"; DE: "Adresszusatz")
+
+
 ## Version 0.6.0 (2026-03-15)
 
 Multi-currency support — extraction, storage, and live EUR conversion in the UI
