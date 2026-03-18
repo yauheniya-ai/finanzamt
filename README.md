@@ -21,15 +21,13 @@
 
 </div>
 
-A Python library for extracting structured data from receipts and invoices and preparing essential German VAT statements.
+An agentic Python library for extracting structured data from receipts and invoices and preparing essential German tax return statements.
 
 ## Features
 
 - **German Tax Alignment** — Category taxonomy and VAT handling aligned with German fiscal practice (Vorsteuer / Umsatzsteuer, UStVA line numbers)
 - **Local-First** — Everything runs locally and completely offline; no data leaves your machine
 - **4-Agent Pipeline** — Sequential specialised agents for metadata, counterparty, amounts, and line items; short focused prompts for reliable local model performance
-- **Purchases and Sales** — Handles both incoming invoices (Eingangsrechnungen) and outgoing invoices (Ausgangsrechnungen)
-- **Counterparty Deduplication** — Vendors and clients are stored once and reused across receipts
 - **Web UI** — Full browser interface for uploading, reviewing, editing, and managing receipts
 
 ## Tech Stack
