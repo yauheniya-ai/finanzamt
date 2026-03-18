@@ -25,10 +25,11 @@ An agentic Python library for extracting structured data from receipts and invoi
 
 ## Features
 
-- **German Tax Alignment** — Category taxonomy and VAT handling aligned with German fiscal practice (Vorsteuer / Umsatzsteuer, UStVA line numbers)
-- **Local-First** — Everything runs locally and completely offline; no data leaves your machine
+- **German Tax Alignment** — Category taxonomy and VAT handling aligned with German fiscal practice 
+managing receipts
+- **Local-First** — Everything runs completely offline, with data stored in a local database
 - **4-Agent Pipeline** — Sequential specialised agents for metadata, counterparty, amounts, and line items; short focused prompts for reliable local model performance
-- **Web UI** — Full browser interface for uploading, reviewing, editing, and managing receipts
+- **Web UI** — Full browser interface for uploading, reviewing, editing, and 
 
 ## Tech Stack
 
