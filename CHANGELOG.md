@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 0.7.5 (2026-03-20)
+
+Dashboard collapsible sections and build-time version injection
+- **Revenue and Expenses sections now collapsible** — the "Revenue" and "Expenses" headers in the Dashboard are now clickable toggle buttons; clicking a header collapses or expands its category chart and supplier breakdown, reducing visual clutter when only one side of the ledger is relevant
+- **Footer version injected at build time** — the version string shown in the footer is no longer hardcoded; Vite reads the `version` field from `pyproject.toml` at build time and injects it as a compile-time constant, so the displayed version always matches the installed package without any manual updates
+
 ## Version 0.7.4 (2026-03-17)
 
 Rebuild frontend static assets
