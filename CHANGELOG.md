@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 0.8.1 (2026-03-20)
+
+Minor fixes to the verified counterparty UX
+- **Fix: verified flag auto-ticking on edit** — `localVerified` is now reset to `null` when entering edit mode; previously the flag persisted across successive saves of the same receipt, causing `counterparty_verified: true` to be silently written to the backend without the user ever ticking the box
+- **"Manage verified providers" moved to top of dropdown** — the option now appears as the first item in the verified counterparty picker, separated from the supplier list by a horizontal rule; previously it was buried at the bottom and invisible when the list was long
+- **Alphabetic sorting in verified counterparty picker** — entries are now sorted case-insensitively and locale-aware (`localeCompare` with `sensitivity: "base"`); previously the list reflected raw database insertion order, with uppercase names appearing before lowercase ones
 
 ## Version 0.8.0 (2026-03-20)
 
