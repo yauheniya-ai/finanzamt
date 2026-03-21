@@ -66,6 +66,13 @@ class ReceiptRepository(Protocol):
         """
         ...
 
+    def relink_counterparty(self, receipt_id: str, fields: dict) -> bool:
+        """
+        Find-or-create a counterparty by name/VAT-ID and link *only* this receipt to it.
+        The previous counterparty row is untouched.  Returns True if the receipt was found.
+        """
+        ...
+
     def close(self) -> None:
         """Release connections."""
         ...

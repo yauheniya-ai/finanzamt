@@ -1,5 +1,14 @@
 # Changelog
 
+
+## Version 0.9.1 (2026-03-21)
+
+Counterparty management improvements
+- **Case-insensitive sort** — `list_all_counterparties()` and `list_verified_counterparties()` now sort by `LOWER(name)` so the list follows natural alphabetical order (`A a B b …`) instead of ASCII order (`A B … a b …`)
+- **Reassign supplier per receipt** — new `relink_counterparty(receipt_id, fields)` method on `SQLiteRepository` runs `get_or_create_counterparty` and relinks only the specified receipt; the previously-linked counterparty row is untouched and cleaned up by the existing orphan-sweep on next open
+- **`POST /receipts/{id}/counterparty`** — new API endpoint accepting `name`, `vat_id`, and optional address fields; finds or creates the matching counterparty and relinks only the target receipt, leaving all other receipts unchanged
+- **UI: "Assign to different supplier"** — expandable row in the receipt edit form's counterparty section (below "Select from verified"); enter a supplier name and optional VAT-ID and click "Assign to this receipt" to relink just that receipt without affecting others
+
 ## Version 0.9.0 (2026-03-21)
 
 Private-use handling with double-entry compatible postings

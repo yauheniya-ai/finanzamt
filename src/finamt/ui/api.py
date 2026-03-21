@@ -21,6 +21,7 @@ GET    /receipts/{id}
 GET    /receipts/{id}/pdf
 PATCH  /receipts/{id}
 DELETE /receipts/{id}
+POST   /receipts/{id}/counterparty    — reassign receipt to a different supplier (find-or-create)
 GET    /counterparties                 — all counterparty rows
 GET    /counterparties/verified        — deduplicated verified counterparties
 DELETE /counterparties/{id}            — remove a counterparty row
@@ -551,6 +552,33 @@ def delete_receipt(receipt_id: str, db: Optional[str] = Query(default=None)):
     with _repo(db_path) as repo:
         if not repo.delete(receipt_id):
             raise HTTPException(status_code=404, detail="Receipt not found.")
+
+
+@app.post("/receipts/{receipt_id}/counterparty", tags=["receipts"])
+def reassign_receipt_counterparty(
+    receipt_id: str,
+    body: dict = Body(...),
+    db: Optional[str] = Query(default=None),
+):
+    """Find-or-create a counterparty by name/VAT-ID and link *only* this receipt to it.
+
+    The old counterparty row is left untouched so other receipts sharing it are
+    unaffected.  Accepts the same flat field names as PATCH /counterparties/{id}
+    plus an optional nested ``address`` object.
+    """
+    db_path = _resolve_db(db)
+    _require_db(db_path)
+    flat: dict = {}
+    for k, v in body.items():
+        if k == "address" and isinstance(v, dict):
+            flat.update(v)
+        else:
+            flat[k] = v
+    with _repo(db_path) as repo:
+        if not repo.relink_counterparty(receipt_id, flat):
+            raise HTTPException(status_code=404, detail="Receipt not found.")
+        receipt = repo.get(receipt_id)
+    return _receipt_to_response(receipt, db_path)
 
 
 # ---------------------------------------------------------------------------

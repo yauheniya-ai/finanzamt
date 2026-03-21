@@ -750,14 +750,14 @@ class SQLiteRepository:
         return self.exists(receipt_id)
 
     def list_verified_counterparties(self) -> list[dict]:
-        """Return all verified counterparties sorted alphabetically by name."""
+        """Return all verified counterparties sorted alphabetically by name (case-insensitive)."""
         rows = self._conn.execute(
             """SELECT id, name, street_and_number, address_supplement,
                       postcode, city, state, country,
                       tax_number, vat_id, verified
                FROM counterparties
                WHERE verified = 1
-               ORDER BY name ASC"""
+               ORDER BY LOWER(COALESCE(name,'')) ASC, name ASC"""
         ).fetchall()
         return [
             {
@@ -785,13 +785,13 @@ class SQLiteRepository:
         )
 
     def list_all_counterparties(self) -> list[dict]:
-        """Return every counterparty row sorted alphabetically by name."""
+        """Return every counterparty row sorted alphabetically by name (case-insensitive)."""
         rows = self._conn.execute(
             """SELECT id, name, street_and_number, address_supplement,
                       postcode, city, state, country,
                       tax_number, vat_id, verified, created_at
                FROM counterparties
-               ORDER BY name ASC"""
+               ORDER BY LOWER(COALESCE(name,'')) ASC, name ASC"""
         ).fetchall()
         return [
             {
@@ -832,6 +832,35 @@ class SQLiteRepository:
         cur = self._exec(
             f"UPDATE counterparties SET {set_clause} WHERE id = ?", values
         )
+        return cur.rowcount > 0
+
+    def relink_counterparty(self, receipt_id: str, fields: dict) -> bool:
+        """Find-or-create a counterparty by name/VAT-ID and link *only* this receipt to it.
+
+        The old counterparty row is untouched — if it becomes unreferenced the
+        startup orphan-cleanup will remove it on the next open.
+        Returns True if the receipt row was found and updated.
+        """
+        from finamt.models import Counterparty, Address
+        cp = Counterparty(
+            name        = fields.get("name") or None,
+            vat_id      = fields.get("vat_id") or None,
+            tax_number  = fields.get("tax_number") or None,
+            address     = Address(
+                street_and_number  = fields.get("street_and_number"),
+                address_supplement = fields.get("address_supplement"),
+                postcode           = fields.get("postcode"),
+                city               = fields.get("city"),
+                state              = fields.get("state"),
+                country            = fields.get("country"),
+            ),
+        )
+        resolved = self.get_or_create_counterparty(cp)
+        cur = self._exec(
+            "UPDATE receipts SET counterparty_id = ? WHERE id = ?",
+            (resolved.id, receipt_id),
+        )
+        self._conn.commit()
         return cur.rowcount > 0
 
     def delete_counterparty(self, cp_id: str) -> bool:
