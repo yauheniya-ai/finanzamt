@@ -26,10 +26,107 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, List
 
 from .agents.prompts import RECEIPT_CATEGORIES
+
+
+# ---------------------------------------------------------------------------
+# Posting helpers
+# ---------------------------------------------------------------------------
+
+_TWO = Decimal("0.01")
+
+
+def _r2(d: Decimal) -> Decimal:
+    """Round to 2 decimal places (half-up)."""
+    return d.quantize(_TWO, rounding=ROUND_HALF_UP)
+
+
+class PostingDirection(str):
+    """
+    Direction of a double-entry posting — ``'debit'`` or ``'credit'``.
+    """
+
+    _VALID = {"debit", "credit"}
+
+    def __new__(cls, value: str) -> "PostingDirection":
+        v = str(value).strip().lower()
+        if v not in cls._VALID:
+            raise ValueError(f"PostingDirection must be 'debit' or 'credit', got {value!r}")
+        return super().__new__(cls, v)
+
+
+class PostingType(str):
+    """
+    Account type for a double-entry posting.
+
+    ``expense``             — Betriebsausgabe
+    ``input_vat``           — Vorsteuer
+    ``accounts_payable``    — Verbindlichkeiten Lieferanten
+    ``revenue``             — Betriebseinnahme
+    ``output_vat``          — Umsatzsteuer
+    ``accounts_receivable`` — Forderungen Kunden
+    ``private_withdrawal``  — Privatentnahme / geldwerter Vorteil
+    """
+
+    _VALID = {
+        "expense",
+        "input_vat",
+        "accounts_payable",
+        "revenue",
+        "output_vat",
+        "accounts_receivable",
+        "private_withdrawal",
+    }
+
+    def __new__(cls, value: str) -> "PostingType":
+        v = str(value).strip().lower()
+        if v not in cls._VALID:
+            raise ValueError(f"Unknown PostingType: {value!r}")
+        return super().__new__(cls, v)
+
+
+@dataclass
+class Posting:
+    """
+    A single double-entry journal posting generated from a receipt.
+
+    For each receipt ``ReceiptData.generate_postings()`` returns a balanced
+    list of debits and credits.  When ``private_use_share > 0`` the list
+    includes correction postings that isolate the non-deductible private
+    portion so that:
+
+    * VAT is only claimed on the business portion.
+    * The full gross amount is still preserved as accounts payable.
+    * A private withdrawal posting captures the owner's benefit in kind.
+    * An EÜR can be derived by aggregating only the *net* expense/revenue
+      postings (after corrections).
+
+    Fields
+    ------
+    receipt_id   : back-reference to the parent receipt
+    posting_type : account type (expense, input_vat, …)
+    direction    : 'debit' or 'credit'
+    amount       : always positive
+    description  : human-readable general-ledger label
+    """
+
+    receipt_id:   str
+    posting_type: PostingType
+    direction:    PostingDirection
+    amount:       Decimal
+    description:  str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "receipt_id":   self.receipt_id,
+            "posting_type": str(self.posting_type),
+            "direction":    str(self.direction),
+            "amount":       float(self.amount),
+            "description":  self.description,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +351,16 @@ class ReceiptData:
     items:            List[ReceiptItem] = field(default_factory=list)
     vat_splits:       List[dict] = field(default_factory=list)
 
+    # ------------------------------------------------------------------
+    # Private-use handling
+    # ------------------------------------------------------------------
+    #
+    # private_use_share — fraction of this receipt that is *non-business*
+    # (0 = fully business, 1 = fully private).  Amounts (net, VAT, gross)
+    # are always stored at face value; the private share is resolved via
+    # ``generate_postings()`` so the full audit trail is preserved.
+    private_use_share: Decimal = field(default_factory=lambda: Decimal("0"))
+
     def __post_init__(self) -> None:
         self.id = _content_hash(self.raw_text)
 
@@ -281,6 +388,92 @@ class ReceiptData:
         return str(self.receipt_type) == "sale"
 
     # ------------------------------------------------------------------
+    # Private-use postings
+    # ------------------------------------------------------------------
+
+    def generate_postings(self) -> List["Posting"]:
+        """
+        Generate a balanced list of double-entry postings for this receipt.
+
+        **Purchase** (``private_use_share = 0``):
+
+        .. code-block:: text
+
+            DEBIT  expense           net   — Betriebsausgabe (gesamt)
+            DEBIT  input_vat         vat   — Vorsteuer (gesamt)
+            CREDIT accounts_payable  gross — Verbindlichkeit Lieferant
+
+        **Purchase** (``private_use_share = p > 0``) — additional corrections:
+
+        .. code-block:: text
+
+            CREDIT expense           net*p         — Privatanteil Korrektur (Netto)
+            CREDIT input_vat         vat*p         — Privatanteil Vorsteuerkorrektur
+            DEBIT  private_withdrawal gross*p      — Privatentnahme / geldwerter Vorteil
+
+        Net effect: only ``net*(1-p)`` flows through the expense account and
+        only ``vat*(1-p)`` remains as reclaimable input VAT.
+
+        **Sale**:
+
+        .. code-block:: text
+
+            DEBIT  accounts_receivable  gross — Forderung Kunde
+            CREDIT revenue              net   — Betriebseinnahme (netto)
+            CREDIT output_vat           vat   — Umsatzsteuer
+
+        Returns an empty list when amounts are not yet available.
+        """
+        if self.total_amount is None or self.vat_amount is None:
+            return []
+
+        gross = _r2(self.total_amount)
+        vat   = _r2(self.vat_amount)
+        net   = _r2(gross - vat)
+        p     = Decimal(str(self.private_use_share))
+        rid   = self.id
+
+        postings: List[Posting] = []
+
+        if self.is_purchase:
+            postings += [
+                Posting(rid, PostingType("expense"),          PostingDirection("debit"),  net,   "Betriebsausgabe (gesamt)"),
+                Posting(rid, PostingType("input_vat"),        PostingDirection("debit"),  vat,   "Vorsteuer (gesamt)"),
+                Posting(rid, PostingType("accounts_payable"), PostingDirection("credit"), gross, "Verbindlichkeit Lieferant"),
+            ]
+            if p > Decimal("0"):
+                priv_net   = _r2(net   * p)
+                priv_vat   = _r2(vat   * p)
+                priv_gross = _r2(gross * p)
+                postings += [
+                    Posting(rid, PostingType("expense"),            PostingDirection("credit"), priv_net,   "Privatanteil Korrektur (Netto)"),
+                    Posting(rid, PostingType("input_vat"),          PostingDirection("credit"), priv_vat,   "Privatanteil Vorsteuerkorrektur"),
+                    Posting(rid, PostingType("private_withdrawal"),  PostingDirection("debit"),  priv_gross, "Privatentnahme / geldwerter Vorteil"),
+                ]
+        else:  # sale
+            postings += [
+                Posting(rid, PostingType("accounts_receivable"), PostingDirection("debit"),  gross, "Forderung Kunde"),
+                Posting(rid, PostingType("revenue"),             PostingDirection("credit"), net,   "Betriebseinnahme (netto)"),
+                Posting(rid, PostingType("output_vat"),          PostingDirection("credit"), vat,   "Umsatzsteuer"),
+            ]
+
+        return postings
+
+    @property
+    def business_net(self) -> Optional[Decimal]:
+        """Net amount attributable to the business (after private-use deduction)."""
+        if self.net_amount is None:
+            return None
+        return _r2(self.net_amount * (Decimal("1") - Decimal(str(self.private_use_share))))
+
+    @property
+    def business_vat(self) -> Optional[Decimal]:
+        """Reclaimable / remittable VAT for the business portion only."""
+        if self.vat_amount is None:
+            return None
+        return _r2(self.vat_amount * (Decimal("1") - Decimal(str(self.private_use_share))))
+
+    # ------------------------------------------------------------------
     # Validation
     # ------------------------------------------------------------------
 
@@ -297,6 +490,8 @@ class ReceiptData:
             and self.vat_amount > self.total_amount
         ):
             return False
+        if not (Decimal("0") <= Decimal(str(self.private_use_share)) <= Decimal("1")):
+            return False
         return True
 
     # ------------------------------------------------------------------
@@ -305,21 +500,24 @@ class ReceiptData:
 
     def to_dict(self) -> dict:
         return {
-            "id":             self.id,
-            "receipt_type":   str(self.receipt_type),
-            "vendor":         self.vendor,  # convenience alias for counterparty.name
-            "counterparty":   self.counterparty.to_dict() if self.counterparty else None,
-            "receipt_number": self.receipt_number,
-            "receipt_date":   self.receipt_date.date().isoformat() if self.receipt_date else None,
-            "total_amount":   float(self.total_amount)   if self.total_amount   is not None else None,
-            "vat_percentage": float(self.vat_percentage) if self.vat_percentage is not None else None,
-            "vat_amount":     float(self.vat_amount)     if self.vat_amount     is not None else None,
-            "net_amount":     float(self.net_amount)     if self.net_amount     is not None else None,
-            "currency":       self.currency,
-            "category":       str(self.category),
-            "subcategory":    self.subcategory,
-            "items":          [item.to_dict() for item in self.items],
-            "vat_splits":     getattr(self, "vat_splits", []),
+            "id":               self.id,
+            "receipt_type":     str(self.receipt_type),
+            "vendor":           self.vendor,  # convenience alias for counterparty.name
+            "counterparty":     self.counterparty.to_dict() if self.counterparty else None,
+            "receipt_number":   self.receipt_number,
+            "receipt_date":     self.receipt_date.date().isoformat() if self.receipt_date else None,
+            "total_amount":     float(self.total_amount)     if self.total_amount     is not None else None,
+            "vat_percentage":   float(self.vat_percentage)   if self.vat_percentage   is not None else None,
+            "vat_amount":       float(self.vat_amount)       if self.vat_amount       is not None else None,
+            "net_amount":       float(self.net_amount)       if self.net_amount       is not None else None,
+            "private_use_share": float(self.private_use_share),
+            "business_net":     float(self.business_net)     if self.business_net     is not None else None,
+            "business_vat":     float(self.business_vat)     if self.business_vat     is not None else None,
+            "currency":         self.currency,
+            "category":         str(self.category),
+            "subcategory":      self.subcategory,
+            "items":            [item.to_dict() for item in self.items],
+            "vat_splits":       getattr(self, "vat_splits", []),
         }
 
     def to_json(self) -> str:

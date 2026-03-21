@@ -31,7 +31,8 @@ from typing import Iterable
 from .base import ReceiptRepository
 from .project import resolve_project
 from ..models import (
-    Address, Counterparty, ReceiptCategory, ReceiptData, ReceiptItem, ReceiptType,
+    Address, Counterparty, Posting, PostingDirection, PostingType,
+    ReceiptCategory, ReceiptData, ReceiptItem, ReceiptType,
 )
 
 DEFAULT_DB_PATH = resolve_project().db_path   # ~/.finamt/default/finamt.db
@@ -94,7 +95,8 @@ class SQLiteRepository:
             ("counterparties",     "state",                "TEXT"),
             ("receipt_vat_splits", "net_amount",           "TEXT"),
             ("receipts",           "currency",             "TEXT DEFAULT 'EUR'"),
-            ("receipts",           "subcategory",           "TEXT"),
+            ("receipts",           "subcategory",          "TEXT"),
+            ("receipts",           "private_use_share",    "TEXT DEFAULT '0'"),
         ]:
             try:
                 self._conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {typedef}")
@@ -125,6 +127,25 @@ class SQLiteRepository:
             );
             CREATE INDEX IF NOT EXISTS idx_vat_splits_receipt
                 ON receipt_vat_splits (receipt_id);
+        """)
+        self._conn.commit()
+
+        # postings table — double-entry journal entries derived from receipts
+        self._conn.executescript("""
+            CREATE TABLE IF NOT EXISTS postings (
+                id           TEXT PRIMARY KEY,
+                receipt_id   TEXT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
+                position     INTEGER,
+                posting_type TEXT NOT NULL,
+                direction    TEXT NOT NULL,
+                amount       TEXT NOT NULL,
+                description  TEXT,
+                created_at   TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_postings_receipt
+                ON postings (receipt_id);
+            CREATE INDEX IF NOT EXISTS idx_postings_type
+                ON postings (posting_type);
         """)
         self._conn.commit()
 
@@ -197,6 +218,20 @@ class SQLiteRepository:
                 raw_text     TEXT,
                 content_hash TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS postings (
+                id           TEXT PRIMARY KEY,
+                receipt_id   TEXT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
+                position     INTEGER,
+                posting_type TEXT NOT NULL,
+                direction    TEXT NOT NULL,
+                amount       TEXT NOT NULL,
+                description  TEXT,
+                created_at   TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_postings_receipt ON postings (receipt_id);
+            CREATE INDEX IF NOT EXISTS idx_postings_type    ON postings (posting_type);
         """)
 
 
@@ -337,8 +372,8 @@ class SQLiteRepository:
                 """INSERT INTO receipts
                    (id, counterparty_id, receipt_type, receipt_number,
                     receipt_date, total_amount, vat_percentage, vat_amount,
-                    currency, category, subcategory, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    currency, category, subcategory, private_use_share, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     receipt.id, cp_id, str(receipt.receipt_type),
                     receipt.receipt_number, date_str,
@@ -348,6 +383,7 @@ class SQLiteRepository:
                     getattr(receipt, "currency", "EUR") or "EUR",
                     str(receipt.category),
                     getattr(receipt, "subcategory", None),
+                    str(getattr(receipt, "private_use_share", "0") or "0"),
                     self._now(),
                 ),
             )
@@ -396,9 +432,104 @@ class SQLiteRepository:
                 (receipt.id, receipt.raw_text, receipt.id),
             )
 
+            # postings — generate and persist double-entry journal entries
+            self._insert_postings(receipt)
+
             self._conn.commit()
 
         return True
+
+    # ------------------------------------------------------------------
+    # Postings helpers
+    # ------------------------------------------------------------------
+
+    def _insert_postings(self, receipt: ReceiptData) -> None:
+        """Generate postings from *receipt* and write them to the DB.
+
+        Called inside an existing write-lock context so it must **not** call
+        ``self._lock`` again.
+        """
+        import uuid as _uuid_p
+        postings = receipt.generate_postings()
+        now = self._now()
+        for pos, p in enumerate(postings, start=1):
+            self._conn.execute(
+                """INSERT INTO postings
+                   (id, receipt_id, position, posting_type, direction, amount, description, created_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (
+                    str(_uuid_p.uuid4()),
+                    receipt.id,
+                    pos,
+                    str(p.posting_type),
+                    str(p.direction),
+                    str(p.amount),
+                    p.description,
+                    now,
+                ),
+            )
+
+    def _sync_postings(self, receipt_id: str) -> None:
+        """Wipe and regenerate postings for *receipt_id*.
+
+        Call this after any update that may alter amounts or
+        ``private_use_share``.
+        """
+        receipt = self.get(receipt_id)
+        if receipt is None:
+            return
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM postings WHERE receipt_id = ?", (receipt_id,)
+            )
+            self._insert_postings(receipt)
+            self._conn.commit()
+
+    def get_postings(self, receipt_id: str) -> list[Posting]:
+        """Return all postings for *receipt_id*, ordered by position."""
+        rows = self._conn.execute(
+            """SELECT * FROM postings
+               WHERE receipt_id = ?
+               ORDER BY position ASC""",
+            (receipt_id,),
+        ).fetchall()
+        result = []
+        for r in rows:
+            try:
+                p = Posting(
+                    receipt_id=r["receipt_id"],
+                    posting_type=PostingType(r["posting_type"]),
+                    direction=PostingDirection(r["direction"]),
+                    amount=Decimal(str(r["amount"])),
+                    description=r["description"] or "",
+                )
+                result.append(p)
+            except (ValueError, Exception):
+                pass  # skip malformed rows from old schema
+        return result
+
+    def list_all_postings(self) -> list[dict]:
+        """Return all postings across all receipts as dicts (e.g. for EÜR derivation)."""
+        rows = self._conn.execute(
+            """SELECT p.*, r.receipt_date, r.receipt_type, r.category
+               FROM postings p
+               JOIN receipts r ON r.id = p.receipt_id
+               ORDER BY r.receipt_date DESC NULLS LAST, p.receipt_id, p.position ASC"""
+        ).fetchall()
+        return [
+            {
+                "receipt_id":   r["receipt_id"],
+                "receipt_date": r["receipt_date"],
+                "receipt_type": r["receipt_type"],
+                "category":     r["category"],
+                "position":     r["position"],
+                "posting_type": r["posting_type"],
+                "direction":    r["direction"],
+                "amount":       float(Decimal(str(r["amount"]))),
+                "description":  r["description"] or "",
+            }
+            for r in rows
+        ]
 
     # ------------------------------------------------------------------
     # Read
@@ -447,7 +578,12 @@ class SQLiteRepository:
         RECEIPT_MUTABLE = {
             "receipt_type", "receipt_number", "receipt_date",
             "total_amount", "vat_percentage", "vat_amount", "currency", "category",
-            "subcategory",
+            "subcategory", "private_use_share",
+        }
+        # Financial fields whose change should trigger posting regeneration
+        _POSTING_SENSITIVE = {
+            "total_amount", "vat_percentage", "vat_amount",
+            "currency", "receipt_type", "private_use_share",
         }
         CP_SCALAR = {
             "counterparty_name": "name",
@@ -468,6 +604,12 @@ class SQLiteRepository:
         if "currency" in receipt_updates:
             raw_cur = str(receipt_updates["currency"]).strip().upper()
             receipt_updates["currency"] = raw_cur if (2 <= len(raw_cur) <= 4 and raw_cur.isalpha()) else "EUR"
+        if "private_use_share" in receipt_updates:
+            try:
+                p = Decimal(str(receipt_updates["private_use_share"]))
+                receipt_updates["private_use_share"] = str(max(Decimal("0"), min(Decimal("1"), p)))
+            except Exception:
+                receipt_updates.pop("private_use_share", None)
 
         # Apply receipt-level updates
         if receipt_updates:
@@ -600,6 +742,10 @@ class SQLiteRepository:
                         item.get("category", "other"),
                     ),
                 )
+
+        # Regenerate postings whenever a financially sensitive field changed
+        if receipt_updates and _POSTING_SENSITIVE.intersection(receipt_updates):
+            self._sync_postings(receipt_id)
 
         return self.exists(receipt_id)
 
@@ -798,18 +944,21 @@ class SQLiteRepository:
         ]
 
         receipt = ReceiptData.__new__(ReceiptData)
-        receipt.raw_text       = row["raw_text"] or ""
-        receipt.vat_splits     = vat_splits
-        receipt.id             = row["id"]
-        receipt.receipt_type   = ReceiptType(row["receipt_type"] or "purchase")
-        receipt.counterparty   = cp
-        receipt.receipt_number = row["receipt_number"]
-        receipt.receipt_date   = receipt_date
-        receipt.total_amount   = self._dec(row["total_amount"])
-        receipt.vat_percentage = self._dec(row["vat_percentage"])
-        receipt.vat_amount     = self._dec(row["vat_amount"])
-        receipt.currency       = row["currency"] if "currency" in row.keys() and row["currency"] else "EUR"
-        receipt.category       = ReceiptCategory(row["category"] or "other")
-        receipt.subcategory    = row["subcategory"] if "subcategory" in row.keys() else None
-        receipt.items          = items
+        receipt.raw_text          = row["raw_text"] or ""
+        receipt.vat_splits        = vat_splits
+        receipt.id                = row["id"]
+        receipt.receipt_type      = ReceiptType(row["receipt_type"] or "purchase")
+        receipt.counterparty      = cp
+        receipt.receipt_number    = row["receipt_number"]
+        receipt.receipt_date      = receipt_date
+        receipt.total_amount      = self._dec(row["total_amount"])
+        receipt.vat_percentage    = self._dec(row["vat_percentage"])
+        receipt.vat_amount        = self._dec(row["vat_amount"])
+        receipt.currency          = row["currency"] if "currency" in row.keys() and row["currency"] else "EUR"
+        receipt.category          = ReceiptCategory(row["category"] or "other")
+        receipt.subcategory       = row["subcategory"] if "subcategory" in row.keys() else None
+        receipt.items             = items
+        # private_use_share — default to 0 for receipts created before this column existed
+        _pus = row["private_use_share"] if "private_use_share" in row.keys() else None
+        receipt.private_use_share = self._dec(_pus) or Decimal("0")
         return receipt

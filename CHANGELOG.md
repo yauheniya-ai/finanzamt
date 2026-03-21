@@ -1,5 +1,25 @@
 # Changelog
 
+## Version 0.9.0 (2026-03-21)
+
+Private-use handling with double-entry compatible postings
+- **`private_use_share` field** — new `Decimal` field (0–1) added to `ReceiptData`; amounts (net, VAT, gross) are always stored at face value and never reduced directly; the share is applied at the posting and reporting layer so the full audit trail is preserved
+- **`generate_postings()` method** — `ReceiptData` now generates a balanced list of double-entry `Posting` objects; purchases book 100 % of expense and input VAT as debits, then add three correction postings when `private_use_share > 0`: credit expense (net × share), credit input_vat (VAT × share), debit private_withdrawal (gross × share); sales generate accounts_receivable / revenue / output_vat entries unchanged
+- **`business_net` / `business_vat` properties** — computed properties on `ReceiptData` returning the amounts attributable to the business after deducting the private share; exposed in `to_dict()` alongside `private_use_share`
+- **New model types** — `Posting` dataclass, `PostingType` (expense, input_vat, accounts_payable, revenue, output_vat, accounts_receivable, private_withdrawal), and `PostingDirection` (debit, credit) added to `finamt.models` and exported from the top-level package
+- **`receipts.private_use_share` column** — new `TEXT DEFAULT '0'` column added to the `receipts` table via the idempotent `ALTER TABLE` migration loop; pre-existing rows default to `0`; persisted and round-tripped through `save()`, `update()`, and `_row_to_receipt()`
+- **`postings` table** — new table storing all double-entry journal entries with columns `id`, `receipt_id` (FK cascade), `position`, `posting_type`, `direction`, `amount`, `description`, `created_at`; postings are generated and written automatically on `save()`; regenerated via `_sync_postings()` whenever a financially sensitive field (`total_amount`, `vat_amount`, `vat_percentage`, `currency`, `receipt_type`, `private_use_share`) is updated
+- **`get_postings(receipt_id)`** — new `SQLiteRepository` method returning the ordered `Posting` list for a receipt
+- **`list_all_postings()`** — new method returning all postings joined with receipt metadata (date, type, category) as dicts; suitable for deriving an EÜR via aggregation
+- **`update()` clamps private_use_share** — values outside [0, 1] are silently clamped; invalid strings are ignored
+- **UStVA uses business portion only** — `generate_ustva()` now reads `business_vat` / `business_net` for purchase receipts so only the tax-deductible fraction is counted in the VAT pre-return; sales output VAT is unaffected
+- **Validation** — `ReceiptData.validate()` rejects `private_use_share` outside [0, 1]
+- **UI: Private Use slider** — edit mode for purchase receipts gains a **Private Use** row in the Amounts section with a 0–100 % range slider and a numeric input; a live preview below the slider shows the resulting Business Net and Business VAT as you drag; an ⓘ tooltip explains the accounting effect
+- **UI: display mode** — when `private_use_share > 0` on a purchase receipt three read-only rows are shown: Private Use %, Business Net, Business VAT
+- **UI: sales receipts unaffected** — the slider is hidden for sales; `private_use_share` is always sent as `0` for sale receipts on save
+- **Localisation** — `field_private_use`, `field_business_net`, `field_business_vat`, and `private_use_tooltip` keys added to both EN and DE locale files
+- **Test suite** — 63 new tests in `tests/test_private_use.py` covering `PostingDirection`/`PostingType` validation, `generate_postings()` balance and per-account amounts for zero/partial/full private shares on purchases and sales, DB round-trip, posting regeneration on update and cascade delete, `list_all_postings()`, and UStVA business-portion accounting
+
 ## Version 0.8.1 (2026-03-20)
 
 Minor fixes to the verified counterparty UX

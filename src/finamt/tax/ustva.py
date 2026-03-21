@@ -254,15 +254,19 @@ def generate_ustva(
                 vat_rate=r.vat_percentage.normalize() if r.vat_percentage else Decimal("0")
             )
 
-        ln  = report.lines[rate_key]
-        vat = _r(r.vat_amount)
-        net = _r(r.net_amount or Decimal("0"))
+        ln = report.lines[rate_key]
 
         if r.is_purchase:
+            # Only the *business* portion is tax-deductible.
+            # business_vat / business_net already apply (1 - private_use_share).
+            vat = _r(r.business_vat if r.business_vat is not None else r.vat_amount)
+            net = _r(r.business_net if r.business_net is not None else (r.net_amount or Decimal("0")))
             ln.purchase_vat += vat
             ln.purchase_net += net
             ln.purchase_count += 1
-        else:  # sale
+        else:  # sale — private_use_share does not reduce output VAT
+            vat = _r(r.vat_amount)
+            net = _r(r.net_amount or Decimal("0"))
             ln.sale_vat += vat
             ln.sale_net += net
             ln.sale_count += 1

@@ -25,6 +25,7 @@ from .exceptions import (
     OCRProcessingError,
 )
 from .models import ExtractionResult, ReceiptCategory, ReceiptData, ReceiptItem
+from .models import Posting, PostingDirection, PostingType
 from .agents.prompts import RECEIPT_CATEGORIES
 
 __all__ = [
@@ -39,6 +40,10 @@ __all__ = [
     "ReceiptItem",
     "ReceiptCategory",
     "ExtractionResult",
+    # Private-use / double-entry
+    "Posting",
+    "PostingDirection",
+    "PostingType",
     # Prompts / categories
     "RECEIPT_CATEGORIES",
     "build_extraction_prompt",
