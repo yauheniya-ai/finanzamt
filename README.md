@@ -340,17 +340,17 @@ Every receipt is tagged with a category and optional subcategory. Categories map
 | Category | Subcategories |
 |---|---|
 | <img src="https://api.iconify.design/mdi:briefcase.svg" width="16" height="16"> `services` | `freelance` `consulting` `legal` `accounting` |
-| <img src="https://api.iconify.design/mdi:package-variant-closed.svg" width="16" height="16"> `products` | — |
+| <img src="https://api.iconify.design/ant-design:product-filled.svg" width="16" height="16"> `products` | — |
 | <img src="https://api.iconify.design/solar:box-bold.svg" width="16" height="16"> `material` | — |
-| <img src="https://api.iconify.design/teenyicons:computer-outline.svg" width="16" height="16"> `equipment` | — |
+| <img src="https://api.iconify.design/streamline-plump:computer-pc-desktop-solid.svg" width="16" height="16"> `equipment` | — |
 | <img src="https://api.iconify.design/heroicons:cpu-chip-16-solid.svg" width="16" height="16"> `software` | `subscriptions` `pay_as_you_go` `licenses` `hosting` `domains` |
-| <img src="https://api.iconify.design/mdi:file-certificate-outline.svg" width="16" height="16"> `licensing` | `software_licenses` `media_licenses` `other_ip` |
+| <img src="https://api.iconify.design/mdi:file-certificate.svg" width="16" height="16"> `licensing` | `software_licenses` `media_licenses` `other_ip` |
 | <img src="https://api.iconify.design/streamline-flex:satellite-dish-solid.svg" width="16" height="16"> `telecommunication` | `phone` `internet` `bundled` |
 | <img src="https://api.iconify.design/mdi:airplane.svg" width="16" height="16"> `travel` | `transport` `accommodation` `meals` `incidental` |
 | <img src="https://api.iconify.design/boxicons:car-filled.svg" width="16" height="16"> `car` | `fuel` `parking` `garage` `repair` `maintenance` `insurance` `leasing` `rental` |
 | <img src="https://api.iconify.design/wpf:books.svg" width="16" height="16"> `education` | `courses` `books` `conferences` `certifications` |
 | <img src="https://api.iconify.design/roentgen:electricity.svg" width="16" height="16"> `utilities` | `electricity` `heating` `water` `waste` |
-| <img src="https://api.iconify.design/carbon:manage-protection.svg" width="16" height="16"> `insurance` | `liability` `health` `vehicle` `property` |
+| <img src="https://api.iconify.design/fa:shield.svg" width="16" height="16"> `insurance` | `liability` `health` `vehicle` `property` |
 | <img src="https://api.iconify.design/boxicons:bank-filled.svg" width="16" height="16"> `financial` | `bank_fees` `interest` `loan_costs` `payment_fees` |
 | <img src="https://api.iconify.design/vaadin:office.svg" width="16" height="16"> `office` | `rent` `coworking` `storage` `cleaning` `security` |
 | <img src="https://api.iconify.design/mdi:loudspeaker.svg" width="16" height="16"> `marketing` | — |
