@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 0.9.2 (2026-03-21)
+
+Subcategory expansion and batch upload
+- **Additional subcategories** — `CATEGORY_SUBCATEGORIES` extended with predefined entries for all previously empty categories: `products` (physical_goods, digital_goods, merchandise, samples), `material` (consumables, raw_materials, packaging, low_value_asset), `equipment` (computer, machinery, furniture, tools, low_value_asset), `marketing` (advertising, print_media, trade_fairs, sponsorship), `donations` (charitable, political, church, membership_fees), `other` (sundry, membership_fees); `services` gains `notary`; `travel` gains `per_diem`
+- **ELSTER-aligned subcategory codes** — new keys follow German tax terminology where applicable: `per_diem` → Verpflegungspauschale, `low_value_asset` → Geringwertiges Wirtschaftsgut (GWG), `gifts` → Geschenke (§4 V EStG); all new codes are translated in both EN and DE locale files
+- **Batch upload** — the file picker in the sidebar now accepts multiple files at once (`multiple` attribute); all selected files are processed sequentially, one SSE stream per file; progress indicator shows position within the batch (e.g. `[2/5] Agent 3/4…`); if a single file fails, processing continues for the remaining files and the error message is prefixed with the filename; the receipt list is refreshed once after all files complete and the last successfully processed receipt is selected
 
 ## Version 0.9.1 (2026-03-21)
 
