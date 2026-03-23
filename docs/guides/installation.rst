@@ -15,6 +15,15 @@ Install from PyPI
 
    pip install finamt
 
+For CLI usage, installing via `pipx <https://pipx.pypa.io/>`_ is recommended.
+It places ``finamt`` into its own isolated virtual environment so its
+dependencies never conflict with other projects, while still making the
+``finamt`` command available system-wide without activating a virtualenv:
+
+.. code-block:: bash
+
+   pipx install finamt
+
 Optional extras
 ~~~~~~~~~~~~~~~
 

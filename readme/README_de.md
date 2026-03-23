@@ -2,47 +2,67 @@
 
 <img src="https://raw.githubusercontent.com/yauheniya-ai/finamt/main/.github/images/finamt-wordmark.svg" width="50%" alt="finamt"/>
 
+<div>
+<br>
+</div>
+
 <div align="center">
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://img.shields.io/pypi/v/finamt?color=blue&label=PyPI)](https://pypi.org/project/finamt/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/finamt)](https://pypistats.org/packages/finamt)
 [![Tests](https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml/badge.svg)](https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/yauheniya-ai/d09f6edc7b1928aeea1fbde834a6080b/raw/coverage.json)](https://github.com/yauheniya-ai/finamt/actions/workflows/tests.yml)
 [![GitHub last commit](https://img.shields.io/github/last-commit/yauheniya-ai/finamt)](https://github.com/yauheniya-ai/finamt/commits/main)
-
+[![Documentation Status](https://readthedocs.org/projects/finamt/badge/?version=latest)](https://readthedocs.org/projects/finamt/)
 
 <img src="https://api.iconify.design/noto-v1:flag-for-flag-united-states.svg" width="16" height="16"> [English](https://github.com/yauheniya-ai/finamt/blob/main/README.md) • <img src="https://api.iconify.design/noto-v1:flag-for-flag-germany.svg" width="16" height="16"> Deutsch
 
 </div>
 
-Eine Python-Bibliothek zur strukturierten Extraktion von Daten aus Belegen und Rechnungen sowie zur Erstellung wesentlicher deutscher Umsatzsteuervoranmeldungen.
+Eine agentische Python-Bibliothek zur strukturierten Extraktion von Daten aus Belegen und Rechnungen sowie zur Erstellung wesentlicher deutscher Steuererklärungen.
 
 ## Funktionen
 
-- **Deutsche Steuerkonformität** — Kategoriensystem und Umsatzsteuerbehandlung ausgerichtet auf die deutsche Buchführungspraxis (Vorsteuer / Umsatzsteuer, UStVA-Kennzahlen)
-- **Lokal & Offline** — Alles läuft lokal und vollständig offline; keine Daten verlassen Ihren Rechner
+- **Deutsche Steuerkonformität** — Kategoriensystem und Umsatzsteuerbehandlung ausgerichtet auf die deutsche Buchführungspraxis
+- **Lokal & Offline** — Alles läuft vollständig offline; Daten werden in einer lokalen Datenbank gespeichert
 - **4-Agenten-Pipeline** — Vier sequenzielle, spezialisierte Agenten für Metadaten, Geschäftspartner, Beträge und Positionen; kurze, fokussierte Prompts für zuverlässige Leistung mit lokalen Modellen
-- **Eingangs- und Ausgangsrechnungen** — Verarbeitet sowohl Eingangsrechnungen als auch Ausgangsrechnungen
-- **Deduplizierung von Geschäftspartnern** — Lieferanten und Kunden werden einmalig gespeichert und belegübergreifend wiederverwendet
 - **Web-Oberfläche** — Vollständige Browseroberfläche zum Hochladen, Prüfen, Bearbeiten und Verwalten von Belegen
 
 ## Technologie-Stack
 
+**Backend**
 - <img src="https://api.iconify.design/devicon:python.svg" width="16" height="16"> Python — Paketsprache
 - <img src="https://api.iconify.design/devicon:fastapi.svg" width="16" height="16"> FastAPI — Backend der Web-Oberfläche
-- <img src="https://api.iconify.design/devicon:react.svg" width="16" height="16"> React — Interaktives Frontend
 - <img src="https://api.iconify.design/simple-icons:paddlepaddle.svg" width="16" height="16"> PaddleOCR — OCR für gescannte PDFs
 - <img src="https://api.iconify.design/devicon:google.svg" width="16" height="16"> Tesseract — OCR für gescannte PDFs und Bilder als Fallback bei PaddleOCR-Fehlern oder Timeouts
 - <img src="https://api.iconify.design/devicon:ollama.svg" width="16" height="16"> Ollama — Lokale LLMs zur strukturierten Extraktion von Beleginformationen
 - <img src="https://api.iconify.design/hugeicons:qwen.svg" width="16" height="16"> Qwen — Laptop-kompatible LLMs; qwen2.5:7b-instruct-q4_K_M ist derzeit das empfohlene Standardmodell für textbasierte Extraktion
 - <img src="https://api.iconify.design/devicon:sqlite.svg" width="16" height="16"> SQLite — Lokale Datenbank für Originalbelege und extrahierte Daten
 
+**Frontend**
+- <img src="https://api.iconify.design/devicon:react.svg" width="16" height="16"> React — Interaktives Frontend
+- <img src="https://api.iconify.design/devicon:vitejs.svg" width="16" height="16"> Vite — Schneller Dev-Server und Produktions-Bundler
+- <img src="https://api.iconify.design/devicon:tailwindcss.svg" width="16" height="16"> Tailwind CSS — Utility-First-Styling
+- <img src="https://api.iconify.design/devicon:typescript.svg" width="16" height="16"> TypeScript — Typsichere Komponenten- und API-Code
+
+**CLI**
+- <img src="https://api.iconify.design/devicon:python.svg" width="16" height="16"> argparse — Flag-basierte CLI (`--ui`, `--file`, `--batch`, `--ustva`, `--type`, `--db`, `--version`)
+
+**Paketierung**
+- <img src="https://api.iconify.design/devicon:pypi.svg" width="16" height="16"> PyPI — Als installierbares Python-Paket verteilt
+
 ## Installation
 
 ```bash
 pip install finamt
+```
+
+Für die CLI-Nutzung empfiehlt sich die Installation über [pipx](https://pipx.pypa.io/) — das Paket läuft in einer isolierten Umgebung, sodass seine Abhängigkeiten nie mit anderen Projekten kollidieren, während der `finamt`-Befehl systemweit verfügbar bleibt, ohne dass eine virtuelle Umgebung aktiviert werden muss:
+
+```bash
+pipx install finamt
 ```
 
 ### Systemvoraussetzungen
@@ -84,7 +104,6 @@ Installer herunterladen von https://github.com/UB-Mannheim/tesseract/wiki und zu
 ### Interaktive Oberfläche
 
 ```bash
-pip install "finamt[ui]"
 finamt --ui
 ```
 
@@ -318,27 +337,34 @@ Jeder Beleg durchläuft vier sequenzielle LLM-Aufrufe, jeweils mit einem kurzen,
 
 Die Ergebnisse werden in Python zusammengeführt — kein zusätzlicher LLM-Validierungsschritt. Die Debug-Ausgabe jedes Agenten (Prompt, Rohantwort, geparste JSON) wird unter `~/.finamt/debug/<beleg_id>/` gespeichert.
 
-## Unterstützte Kategorien
+## Kategorien und Unterkategorien
 
-| Kategorie | Typischer Inhalt | Richtung |
-|---|---|---|
-| `material` | Papier, Bürobedarf, Rohstoffe | Eingang |
-| `equipment` | Hardware, Drucker, Monitore, Maschinen | Eingang |
-| `software` | Lizenzen, SaaS-Abonnements, Cloud-Dienste | Eingang |
-| `internet` | Hosting, Domains, Breitband | Eingang |
-| `telecommunication` | Mobilfunkverträge, SIM, Telefon | Eingang |
-| `travel` | Flüge, Bahn, Hotels, Taxis, Mietwagen | Eingang |
-| `education` | Kurse, Bücher, Zertifizierungen, Seminare | Eingang |
-| `utilities` | Strom, Gas, Wasser, Heizung | Eingang |
-| `insurance` | Haftpflicht, Kranken-, Sachversicherung | Eingang |
-| `taxes` | Steuerberatung, Gebühren, Abgaben | Eingang |
-| `services` | Freiberufliche Leistungen / Dienstleistungen an Kunden | Ausgang |
-| `consulting` | Beratungsprojekte für Kunden | Ausgang |
-| `products` | Physische Waren an Kunden | Ausgang |
-| `licensing` | Software- oder IP-Rechte für Kunden | Ausgang |
-| `other` | Alles, was keiner der obigen Kategorien entspricht | beides |
+Jeder Beleg wird mit einer Kategorie und einer optionalen Unterkategorie versehen. Kategorien entsprechen direkt den Positionen in den deutschen ELSTER-Formularen (EÜR / UStVA), sodass die richtigen Summen ohne manuelle Nachsortierung in die richtigen Felder einfließen.
+
+| Kategorie | Unterkategorien |
+|---|---|
+| <img src="https://api.iconify.design/mdi:briefcase.svg" width="16" height="16"> `services` | `freelance` `consulting` `legal` `accounting` `notary` |
+| <img src="https://api.iconify.design/ant-design:product-filled.svg" width="16" height="16"> `products` | `physical_goods` `digital_goods` `merchandise` `samples` |
+| <img src="https://api.iconify.design/solar:box-bold.svg" width="16" height="16"> `material` | `consumables` `raw_materials` `packaging` `merchandise` |
+| <img src="https://api.iconify.design/streamline-plump:computer-pc-desktop-solid.svg" width="16" height="16"> `equipment` | `low_value_asset` `computer` `machinery` `furniture` `tools` |
+| <img src="https://api.iconify.design/heroicons:cpu-chip-16-solid.svg" width="16" height="16"> `software` | `subscriptions` `pay_as_you_go` `licenses` `hosting` `domains` |
+| <img src="https://api.iconify.design/mdi:file-certificate.svg" width="16" height="16"> `licensing` | `software_licenses` `media_licenses` `other_ip` |
+| <img src="https://api.iconify.design/streamline-flex:satellite-dish-solid.svg" width="16" height="16"> `telecommunication` | `phone` `internet` `bundled` |
+| <img src="https://api.iconify.design/mdi:airplane.svg" width="16" height="16"> `travel` | `transport` `accommodation` `meals` `per_diem` `incidental` |
+| <img src="https://api.iconify.design/boxicons:car-filled.svg" width="16" height="16"> `car` | `fuel` `parking` `garage` `repair` `maintenance` `insurance` `leasing` `rental` |
+| <img src="https://api.iconify.design/wpf:books.svg" width="16" height="16"> `education` | `courses` `books` `conferences` `certifications` |
+| <img src="https://api.iconify.design/roentgen:electricity.svg" width="16" height="16"> `utilities` | `electricity` `heating` `water` `waste` |
+| <img src="https://api.iconify.design/fa:shield.svg" width="16" height="16"> `insurance` | `liability` `health` `vehicle` `property` |
+| <img src="https://api.iconify.design/boxicons:bank-filled.svg" width="16" height="16"> `financial` | `bank_fees` `interest` `loan_costs` `payment_fees` |
+| <img src="https://api.iconify.design/vaadin:office.svg" width="16" height="16"> `office` | `rent` `coworking` `storage` `cleaning` `security` |
+| <img src="https://api.iconify.design/mdi:loudspeaker.svg" width="16" height="16"> `marketing` | `advertising` `print_media` `trade_fairs` `sponsorship` `gifts` |
+| <img src="https://api.iconify.design/mdi:donation.svg" width="16" height="16"> `donations` | `charitable` `political` `church` |
+| <img src="https://api.iconify.design/flowbite:folder-plus-solid.svg" width="16" height="16"> `other` | `membership_fees` `sundry` |
+
+
 
 ## Aufgabenliste
+
 - [x] Beleganalyse
 - [x] Steuerberechnungsmodul
 - [ ] ELSTER-Feldzuordnung
