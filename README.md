@@ -61,6 +61,12 @@ managing receipts
 pip install finamt
 ```
 
+For CLI usage, installing via [pipx](https://pipx.pypa.io/) is recommended — it places `finamt` into its own dedicated virtual environment, ensuring its dependencies never interfere with your other projects, while still exposing the `finamt` command globally without requiring you to activate a virtualenv:
+
+```bash
+pipx install finamt
+```
+
 ### System Requirements
 
 - Python 3.10+
