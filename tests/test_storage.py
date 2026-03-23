@@ -198,8 +198,10 @@ class TestSaveGet:
 # ---------------------------------------------------------------------------
 
 class TestCounterpartyDedup:
-    def test_same_vat_id_reuses_counterparty(self, repo):
-        """Same VAT ID → second receipt reuses existing counterparty row, no error."""
+    def test_same_name_reuses_counterparty(self, repo):
+        """Same name → second receipt reuses existing counterparty row, no error.
+        (VAT-ID is NOT used as a match key — name is the sole deduplication key.)
+        """
         cp = _make_counterparty("Vendor A")
         r1 = _make_receipt(counterparty=cp)
         r2 = _make_receipt(counterparty=cp)
@@ -208,6 +210,28 @@ class TestCounterpartyDedup:
         f1 = repo.get(r1.id)
         f2 = repo.get(r2.id)
         assert f1.counterparty.id == f2.counterparty.id
+
+    def test_same_vat_id_different_names_creates_new_counterparty(self, repo):
+        """Same VAT ID but different names → two separate counterparty rows.
+
+        VAT-ID matching was removed to prevent agent OCR errors (e.g. the
+        taxpayer's own VAT ID being attached to a supplier) from silently
+        merging unrelated counterparties.  Duplicate VAT IDs are highlighted
+        in the UI for the user to resolve manually.
+        """
+        shared_vat = "DE123456789"
+        cp1 = Counterparty(name="Deutsche Bank AG",   vat_id=shared_vat)
+        cp2 = Counterparty(name="Deutsche Bahn AG",   vat_id=shared_vat)
+        r1 = _make_receipt(counterparty=cp1)
+        r2 = _make_receipt(counterparty=cp2)
+        repo.save(r1)
+        repo.save(r2)
+        f1 = repo.get(r1.id)
+        f2 = repo.get(r2.id)
+        # Must be two distinct counterparty rows — not merged by VAT ID
+        assert f1.counterparty.id != f2.counterparty.id
+        assert f1.counterparty.name == "Deutsche Bank AG"
+        assert f2.counterparty.name == "Deutsche Bahn AG"
 
     def test_same_name_no_vat_id_reuses_counterparty(self, repo):
         """Same name + no VAT ID → deduplicated on name."""

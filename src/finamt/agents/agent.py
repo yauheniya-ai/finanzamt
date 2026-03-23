@@ -148,12 +148,10 @@ class FinanceAgent:
                 taxpayer_info=taxpayer_info,
             )
 
-            # 8 — Validate --------------------------------------------------
-            if not receipt_data.validate():
-                raise InvalidReceiptError(
-                    f"Receipt failed validation — "
-                    f"total={receipt_data.total_amount}, date={receipt_data.receipt_date}"
-                )
+            # 8 — Validate (collects warnings; never blocks) -----------------
+            receipt_data.validate()  # populates receipt_data.validation_warnings
+            # Receipts with warnings are saved and shown with a warning banner
+            # in the UI — the user decides to correct or delete them.
 
             # 9 — Save + PDF copy -------------------------------------------
             if self._db_path:

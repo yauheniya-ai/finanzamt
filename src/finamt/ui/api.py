@@ -337,7 +337,12 @@ async def upload_receipt_stream(
     taxpayer_name:       Optional[str] = Query(default=None, description="Taxpayer's own name"),
     taxpayer_vat_id:     Optional[str] = Query(default=None, description="Taxpayer's own VAT ID"),
     taxpayer_tax_number: Optional[str] = Query(default=None, description="Taxpayer's own tax number"),
-    taxpayer_address:    Optional[str] = Query(default=None, description="Taxpayer's own address"),
+    taxpayer_address:    Optional[str] = Query(default=None, description="Taxpayer's own composite address (legacy, unused)"),
+    taxpayer_street:     Optional[str] = Query(default=None, description="Taxpayer's own street & number"),
+    taxpayer_postcode:   Optional[str] = Query(default=None, description="Taxpayer's own postcode"),
+    taxpayer_city:       Optional[str] = Query(default=None, description="Taxpayer's own city"),
+    taxpayer_state:      Optional[str] = Query(default=None, description="Taxpayer's own state/region"),
+    taxpayer_country:    Optional[str] = Query(default=None, description="Taxpayer's own country"),
 ):
     """Upload a receipt and stream back Server-Sent Events with progress and result.
 
@@ -366,12 +371,19 @@ async def upload_receipt_stream(
     queue: asyncio.Queue[str | None] = asyncio.Queue()
 
     _taxpayer_info: Optional[dict] = None
-    if any([taxpayer_name, taxpayer_vat_id, taxpayer_tax_number, taxpayer_address]):
+    if any([taxpayer_name, taxpayer_vat_id, taxpayer_tax_number,
+            taxpayer_address, taxpayer_street, taxpayer_postcode,
+            taxpayer_city, taxpayer_state, taxpayer_country]):
         _taxpayer_info = {
             "name":       taxpayer_name       or "",
             "vat_id":     taxpayer_vat_id     or "",
             "tax_number": taxpayer_tax_number or "",
             "address":    taxpayer_address    or "",
+            "street":     taxpayer_street     or "",
+            "postcode":   taxpayer_postcode   or "",
+            "city":       taxpayer_city       or "",
+            "state":      taxpayer_state      or "",
+            "country":    taxpayer_country    or "",
         }
 
     def _run() -> None:

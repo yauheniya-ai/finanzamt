@@ -212,6 +212,43 @@ def _build_receipt_data(
 
 
 # ---------------------------------------------------------------------------
+# Taxpayer-info cleanup
+# ---------------------------------------------------------------------------
+
+def _strip_taxpayer_fields(counterparty: dict, taxpayer_info: Optional[dict]) -> dict:
+    """Silently null out counterparty fields that are exact copies of the taxpayer's
+    own data (case-insensitive, whitespace-normalised).  No warnings are emitted.
+
+    This guards against the LLM defaulting to the taxpayer's VAT-ID / tax-number
+    / name when no real counterparty data is present in the document.
+    """
+    if not taxpayer_info:
+        return counterparty
+
+    def _norm(v: Optional[str]) -> str:
+        return (v or "").strip().casefold()
+
+    checks = {
+        "name":               taxpayer_info.get("name"),
+        "vat_id":             taxpayer_info.get("vat_id"),
+        "tax_number":         taxpayer_info.get("tax_number"),
+        # Address sub-fields — mapped from the individual taxpayer profile fields
+        "street_and_number":  taxpayer_info.get("street"),
+        "postcode":           taxpayer_info.get("postcode"),
+        "city":               taxpayer_info.get("city"),
+        "state":              taxpayer_info.get("state"),
+        "country":            taxpayer_info.get("country"),
+    }
+
+    result = dict(counterparty)
+    for field, taxpayer_value in checks.items():
+        if taxpayer_value and _norm(result.get(field)) == _norm(taxpayer_value):
+            result[field] = None
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------------
 
@@ -256,6 +293,7 @@ def run_pipeline(
         debug_dir=     debug_dir,
     )
     counterparty = _validate_agent2(raw2)
+    counterparty = _strip_taxpayer_fields(counterparty, taxpayer_info)
 
     # ── Agent 3: amounts ───────────────────────────────────────────────────
     _progress.emit(f"  {_ts()} → Agent 3: amounts")

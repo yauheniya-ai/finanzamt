@@ -1,5 +1,19 @@
 # Changelog
 
+## Version 0.11.0 (2026-03-23)
+
+Data-integrity fixes, validation-as-warnings, and taxpayer-info cleanup
+
+- **Verified-tick auto-fill removed** — the "Verified" checkbox in `PreviewPanel` no longer inherits the DB-stored `verified` state automatically on first render; `isVerified` is now `localVerified === true`, meaning the tick is only set when the user explicitly activates it in the current session; when a counterparty is already verified in the DB but the user has not yet confirmed in the current session an amber `◎ VERIFIED` read-only badge is shown instead of a pre-checked box
+- **VAT-ID-based counterparty merging removed** — `get_or_create_counterparty()` in `sqlite.py` previously merged any counterparty whose VAT ID matched an existing row regardless of name, silently overwriting different companies with the same tax ID (e.g. Deutsche Bank AG clobbering Deutsche Bahn AG data); the VAT-ID match path is removed entirely and deduplication now uses case-insensitive name comparison only
+- **Duplicate VAT-ID highlighting** — the Counterparties Explorer in the frontend detects multiple counterparty rows sharing the same non-empty VAT ID and marks each with a red `⚠` icon and a tooltip hint; this surfaces data-quality issues introduced by earlier imports without preventing the user from working with affected records
+- **Validation rewritten as warnings** — `ReceiptData.validate()` no longer raises or returns a hard-fail boolean; instead it accumulates all rule violations into a new `validation_warnings: List[str]` field; the method still returns `False` when warnings exist for callers that check the flag, but no code now blocks on it; the `InvalidReceiptError` raise in `agent.py` is removed so **every receipt is always saved** regardless of data quality
+- **Validation rules changed** — future-dated receipts were previously a hard block; they now emit `"Receipt date is in the future"` as a warning and save normally; all other rules (total ≤ 0, VAT% out of range, VAT amount > total, private_use_share out of [0, 1]) are likewise demoted to warnings
+- **`validation_warnings` persisted** — a new `validation_warnings TEXT` column (JSON array) is added to the `receipts` table via the idempotent migration loop in `sqlite.py`; `save()` serialises the list, `_row_to_receipt()` deserialises it, and `to_dict()` exposes it; pre-existing rows default to `NULL` / empty list
+- **UI: validation-warning banner** — when a loaded receipt carries warnings, `PreviewPanel` renders a red banner beneath the header that lists each warning; the sidebar receipt list shows a red `⚠` icon on any receipt with at least one warning
+- **Taxpayer-info postprocessing cleanup** — a new `_strip_taxpayer_fields(counterparty, taxpayer_info)` helper in `pipeline.py` silently nulls out any counterparty field (`name`, `vat_id`, `tax_number`) whose value is an exact case-insensitive match for the corresponding taxpayer field; this prevents Agent 2 from defaulting to the taxpayer's own identifiers when no real counterparty data appears in the document; address sub-fields are not checked because `taxpayer_info` carries only a composite address string; no warnings or log entries are emitted
+- **Tests** — `test_pipeline.py` added with 11 unit tests covering `_strip_taxpayer_fields` (no taxpayer, empty taxpayer, exact matches per field, case/whitespace normalisation, partial-match safety, multi-field strip, address-fields untouched, immutability of input dict); `test_models.py` updated for future-date warning; `test_storage.py` updated for name-only counterparty deduplication; total suite: 498 tests passing
+
 ## Version 0.10.1 (2026-03-21)
 
 Batch upload live sidebar updates

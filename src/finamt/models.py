@@ -350,6 +350,9 @@ class ReceiptData:
     subcategory:      Optional[str] = None
     items:            List[ReceiptItem] = field(default_factory=list)
     vat_splits:       List[dict] = field(default_factory=list)
+    # Populated by validate(); empty = clean, non-empty = user-visible warnings.
+    # Receipts are always saved regardless — the user decides to correct or delete.
+    validation_warnings: List[str] = field(default_factory=list)
 
     # ------------------------------------------------------------------
     # Private-use handling
@@ -478,21 +481,35 @@ class ReceiptData:
     # ------------------------------------------------------------------
 
     def validate(self) -> bool:
+        """
+        Collect business-rule warnings into ``self.validation_warnings``.
+
+        Returns True when there are no warnings (clean receipt).
+        Returns False when at least one rule is violated.
+
+        Regardless of the return value, receipts are *always* saved — the
+        caller must not block on a False return.  Warnings are stored in the
+        DB and shown to the user, who decides to correct or delete.
+        """
+        warnings: List[str] = []
         if self.receipt_date and self.receipt_date > datetime.now():
-            return False
+            warnings.append(f"Future date: {self.receipt_date.date().isoformat()}")
         if self.total_amount is not None and self.total_amount <= 0:
-            return False
+            warnings.append(f"Total amount must be positive (got {self.total_amount})")
         if self.vat_percentage is not None and not (0 <= self.vat_percentage <= 100):
-            return False
+            warnings.append(f"VAT percentage out of range: {self.vat_percentage}")
         if (
             self.total_amount is not None
             and self.vat_amount is not None
             and self.vat_amount > self.total_amount
         ):
-            return False
+            warnings.append(
+                f"VAT amount ({self.vat_amount}) exceeds total ({self.total_amount})"
+            )
         if not (Decimal("0") <= Decimal(str(self.private_use_share)) <= Decimal("1")):
-            return False
-        return True
+            warnings.append(f"Private use share out of range: {self.private_use_share}")
+        self.validation_warnings = warnings
+        return len(warnings) == 0
 
     # ------------------------------------------------------------------
     # Serialisation
@@ -518,6 +535,7 @@ class ReceiptData:
             "subcategory":      self.subcategory,
             "items":            [item.to_dict() for item in self.items],
             "vat_splits":       getattr(self, "vat_splits", []),
+            "validation_warnings": getattr(self, "validation_warnings", []),
         }
 
     def to_json(self) -> str:

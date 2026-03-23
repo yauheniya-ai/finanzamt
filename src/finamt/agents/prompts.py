@@ -37,14 +37,14 @@ Return only JSON:"""
 
 AGENT2_TEMPLATE = """\
 Extract the {party} from the receipt text below.
+{exclusion}
+Rules: name = business|person, \
+vat_id = USt-IdNr|UID, \
+tax_number = Steuernummer, \
 Return only this JSON, no other text:
 {{"name": null, "vat_id": null, "tax_number": null, "street_and_number": null, \
 "address_supplement": null, "postcode": null, "city": null, "state": null, "country": null}}
 
-Rules: name = actual business/person name, \
-vat_id = USt-IdNr. e.g. DE123456789, \
-tax_number = Steuernummer e.g. 123/456/78901, \
-{exclusion}
 TEXT:
 {text}
 
@@ -120,9 +120,10 @@ def build_agent2_prompt(text: str, receipt_type: str, taxpayer_info: Optional[di
         if taxpayer_info.get("address"):    parts.append(f"Address: {taxpayer_info['address']}")
         if parts:
             exclusion = (
-                f"IMPORTANT: The following belong to the TAXPAYER/DOCUMENT ISSUER "
-                f"— do NOT extract these as the {party}: "
-                + "; ".join(parts)
+                f"IMPORTANT: The following data belong to the USER not {party} "
+                f"— do NOT extract it: "
+                + "; ".join(parts) +
+                f". Instead, find other suitable data for these fields."
             )
 
     return AGENT2_TEMPLATE.format(party=party, exclusion=exclusion, text=_truncate(text))

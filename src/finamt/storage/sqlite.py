@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import json
 import threading
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -97,6 +98,7 @@ class SQLiteRepository:
             ("receipts",           "currency",             "TEXT DEFAULT 'EUR'"),
             ("receipts",           "subcategory",          "TEXT"),
             ("receipts",           "private_use_share",    "TEXT DEFAULT '0'"),
+            ("receipts",           "validation_warnings",  "TEXT"),
         ]:
             try:
                 self._conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {typedef}")
@@ -264,23 +266,24 @@ class SQLiteRepository:
 
     def get_or_create_counterparty(self, cp: Counterparty) -> Counterparty:
         """
-        Return an existing counterparty matching by VAT-ID (preferred) or by
-        name (fallback). Only inserts a new row when no match is found.
+        Return an existing counterparty matching by name only (case-insensitive).
+
+        VAT-ID is intentionally NOT used as a match key: agent OCR errors can
+        produce the same VAT ID for completely different companies (e.g. the
+        taxpayer's own ID being attached to a supplier), and merging on VAT ID
+        alone would silently overwrite unrelated counterparties.  Duplicate VAT
+        IDs are surfaced to the user in the UI instead.
+
+        Only inserts a new row when no name-match is found.
         The SELECT + INSERT is performed under the write lock to prevent
         duplicate rows from concurrent uploads.
         """
         with self._lock:
             row = None
-            if cp.vat_id and cp.vat_id.strip():
-                row = self._conn.execute(
-                    "SELECT * FROM counterparties WHERE LOWER(vat_id) = LOWER(?)"
-                    " ORDER BY created_at ASC LIMIT 1",
-                    (cp.vat_id.strip(),),
-                ).fetchone()
-            if row is None and cp.name and cp.name.strip():
+            if cp.name and cp.name.strip():
                 row = self._conn.execute(
                     "SELECT * FROM counterparties"
-                    " WHERE LOWER(name) = LOWER(?) AND (vat_id IS NULL OR vat_id = '')"
+                    " WHERE LOWER(name) = LOWER(?)"
                     " ORDER BY created_at ASC LIMIT 1",
                     (cp.name.strip(),),
                 ).fetchone()
@@ -372,8 +375,9 @@ class SQLiteRepository:
                 """INSERT INTO receipts
                    (id, counterparty_id, receipt_type, receipt_number,
                     receipt_date, total_amount, vat_percentage, vat_amount,
-                    currency, category, subcategory, private_use_share, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    currency, category, subcategory, private_use_share,
+                    validation_warnings, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     receipt.id, cp_id, str(receipt.receipt_type),
                     receipt.receipt_number, date_str,
@@ -384,6 +388,7 @@ class SQLiteRepository:
                     str(receipt.category),
                     getattr(receipt, "subcategory", None),
                     str(getattr(receipt, "private_use_share", "0") or "0"),
+                    json.dumps(getattr(receipt, "validation_warnings", []) or []),
                     self._now(),
                 ),
             )
@@ -578,7 +583,7 @@ class SQLiteRepository:
         RECEIPT_MUTABLE = {
             "receipt_type", "receipt_number", "receipt_date",
             "total_amount", "vat_percentage", "vat_amount", "currency", "category",
-            "subcategory", "private_use_share",
+            "subcategory", "private_use_share", "validation_warnings",
         }
         # Financial fields whose change should trigger posting regeneration
         _POSTING_SENSITIVE = {
@@ -610,6 +615,10 @@ class SQLiteRepository:
                 receipt_updates["private_use_share"] = str(max(Decimal("0"), min(Decimal("1"), p)))
             except Exception:
                 receipt_updates.pop("private_use_share", None)
+        # Serialise validation_warnings list → JSON text
+        if "validation_warnings" in receipt_updates:
+            vw = receipt_updates["validation_warnings"]
+            receipt_updates["validation_warnings"] = json.dumps(vw if isinstance(vw, list) else [])
 
         # Apply receipt-level updates
         if receipt_updates:
@@ -990,4 +999,7 @@ class SQLiteRepository:
         # private_use_share — default to 0 for receipts created before this column existed
         _pus = row["private_use_share"] if "private_use_share" in row.keys() else None
         receipt.private_use_share = self._dec(_pus) or Decimal("0")
+        # validation_warnings — default to [] for receipts created before this column existed
+        _vw_raw = row["validation_warnings"] if "validation_warnings" in row.keys() else None
+        receipt.validation_warnings = json.loads(_vw_raw) if _vw_raw else []
         return receipt

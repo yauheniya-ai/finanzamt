@@ -96,10 +96,28 @@ class TestReceiptData:
     def test_validate_passes_valid_receipt(self, sample_receipt):
         assert sample_receipt.validate() is True
 
-    def test_validate_rejects_future_date(self):
+    def test_validate_warns_on_future_date(self):
+        # Future dates produce a warning but the receipt is NOT blocked — it's
+        # saved and surfaced in the UI so the user can correct or delete it.
         r = ReceiptData(receipt_date=datetime(2099, 1, 1))
-        assert r.validate() is False
+        result = r.validate()
+        assert result is False
+        assert len(r.validation_warnings) == 1
+        assert "Future date" in r.validation_warnings[0]
 
+    def test_validate_populates_warnings_list(self):
+        r = ReceiptData(total_amount=Decimal("-5.00"))
+        r.validate()
+        assert len(r.validation_warnings) == 1
+        assert "positive" in r.validation_warnings[0]
+
+    def test_validate_clears_old_warnings_on_rerun(self):
+        r = ReceiptData(total_amount=Decimal("-1"))
+        r.validate()
+        assert len(r.validation_warnings) == 1
+        r.total_amount = Decimal("10")
+        r.validate()
+        assert r.validation_warnings == []
     def test_validate_rejects_zero_total(self):
         r = ReceiptData(total_amount=Decimal("0"))
         assert r.validate() is False
