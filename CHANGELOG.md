@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 0.11.2 (2026-03-25)
+
+Counterparties Explorer — keep receipt visible in background
+
+- **Backdrop removed** — the `CounterpartiesExplorer` overlay no longer renders a `bg-black/70` full-screen backdrop; the outer wrapper uses `pointer-events-none` with no background so the receipt (sidebar list, panel content) stays fully visible behind the sliding panel; the panel itself retains `pointer-events-auto` so all interactions work as before
+- **Fullscreen mode fix** — in fullscreen view (PDF on the left, data panel on the right) opening the Counterparties Explorer previously replaced the entire left side with a blank black `div`; the `cpExplorerOpen ? <div className="flex-1 bg-black" /> :` branch is removed so the receipt PDF or image continues to display on the left while the explorer slides in from the right, consistent with non-fullscreen behaviour
+
 ## Version 0.11.1 (2026-03-23)
 
 Verified-tick revert
