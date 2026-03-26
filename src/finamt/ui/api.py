@@ -338,8 +338,9 @@ async def upload_receipt_stream(
     taxpayer_vat_id:     Optional[str] = Query(default=None, description="Taxpayer's own VAT ID"),
     taxpayer_tax_number: Optional[str] = Query(default=None, description="Taxpayer's own tax number"),
     taxpayer_address:    Optional[str] = Query(default=None, description="Taxpayer's own composite address (legacy, unused)"),
-    taxpayer_street:     Optional[str] = Query(default=None, description="Taxpayer's own street & number"),
-    taxpayer_postcode:   Optional[str] = Query(default=None, description="Taxpayer's own postcode"),
+    taxpayer_street:              Optional[str] = Query(default=None, description="Taxpayer's own street & number"),
+    taxpayer_address_supplement: Optional[str] = Query(default=None, description="Taxpayer's own address supplement"),
+    taxpayer_postcode:           Optional[str] = Query(default=None, description="Taxpayer's own postcode"),
     taxpayer_city:       Optional[str] = Query(default=None, description="Taxpayer's own city"),
     taxpayer_state:      Optional[str] = Query(default=None, description="Taxpayer's own state/region"),
     taxpayer_country:    Optional[str] = Query(default=None, description="Taxpayer's own country"),
@@ -372,15 +373,16 @@ async def upload_receipt_stream(
 
     _taxpayer_info: Optional[dict] = None
     if any([taxpayer_name, taxpayer_vat_id, taxpayer_tax_number,
-            taxpayer_address, taxpayer_street, taxpayer_postcode,
-            taxpayer_city, taxpayer_state, taxpayer_country]):
+            taxpayer_address, taxpayer_street, taxpayer_address_supplement,
+            taxpayer_postcode, taxpayer_city, taxpayer_state, taxpayer_country]):
         _taxpayer_info = {
             "name":       taxpayer_name       or "",
             "vat_id":     taxpayer_vat_id     or "",
             "tax_number": taxpayer_tax_number or "",
             "address":    taxpayer_address    or "",
-            "street":     taxpayer_street     or "",
-            "postcode":   taxpayer_postcode   or "",
+            "street":              taxpayer_street              or "",
+            "address_supplement": taxpayer_address_supplement  or "",
+            "postcode":           taxpayer_postcode            or "",
             "city":       taxpayer_city       or "",
             "state":      taxpayer_state      or "",
             "country":    taxpayer_country    or "",

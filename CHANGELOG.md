@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 0.11.4 (2026-03-26)
+
+Batch upload cancellation and taxpayer address supplement
+
+- **Batch upload cancel button** — a small `✕` button appears beside the upload progress indicator while a batch is in progress; clicking it calls `AbortController.abort()`, which cancels the in-flight `fetch` request and stops the loop before the next file begins; `AbortError` is caught silently so no spurious error banner appears; the button disappears automatically once the queue finishes or is cancelled
+- **`TaxpayerProfile.address_supplement`** — new `address_supplement: string` field added to the `TaxpayerProfile` type; the `TaxpayerModal` renders a dedicated input between the street and postcode/city rows, labelled `"Address Supplement"` / `"Adresszusatz"`; the field is initialised from `localStorage` and saved back on submit
+- **Dashboard taxpayer address display** — the taxpayer address line in the dashboard header now includes `address_supplement` between the street and the postcode/city segment, matching the `formatAddress()` order used elsewhere
+- **Upload query string updated** — `App.tsx` includes `taxpayer_address_supplement` in the upload stream URL; `api.py` accepts the new optional query parameter and forwards it in `_taxpayer_info`
+- **Localisation** — `taxpayer_address_supplement` key added to both EN (`"Address Supplement"`) and DE (`"Adresszusatz"`) locale files; `cancel_upload` key added (EN: `"Cancel upload"`, DE: `"Upload abbrechen"`)
+
 ## Version 0.11.3 (2026-03-26)
 
 Offline-safe icons — inline SVG components replace CDN-fetched icon font
