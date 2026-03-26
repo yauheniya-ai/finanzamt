@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finamt"
-version = "0.11.2"
-description = "A Python library for extracting key information from receipts and preparing essential German tax return statements."
+version = "0.11.3"
+description = "An agentic Python library for extracting key information from receipts and preparing essential German tax return statements."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [

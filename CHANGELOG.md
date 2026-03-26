@@ -1,6 +1,15 @@
 # Changelog
 
-## Version 0.11.2 (2026-03-25)
+## Version 0.11.3 (2026-03-26)
+
+Offline-safe icons — inline SVG components replace CDN-fetched icon font
+
+- **`constants/icons.tsx` added** — all icons previously loaded at runtime via `@iconify/react` are now shipped as inline React SVG components (`IconClose`, `IconDelete`, `IconDatabase`, `IconDatabaseCheck`, `IconDatabaseOff`, `IconChevronDown`, `IconRefresh`, `IconPlusCircle`, `IconSpinner`); each component uses `fill="currentColor"` and spreads `SVGProps<SVGSVGElement>` so `className`, `style`, and all other SVG attributes work identically to the Iconify `<Icon>` wrapper
+- **`DBSelector.tsx`** — `@iconify/react` import removed; all nine icon usages replaced with inline components
+- **`Sidebar.tsx`**, **`PreviewPanel.tsx`**, **`Dashboard.tsx`** — high-frequency icons (`mdi:chevron-down`, `mdi:close`, `mdi:trash-can-outline`, `svg-spinners:12-dots-scale-rotate`, `mdi:plus-circle-outline`) replaced with inline components; remaining low-frequency icons (dynamic category icons, `mdi:upload`, etc.) retain `@iconify/react` for now
+- **Motivation** — `@iconify/react` loads icon data from the Iconify CDN when a specific icon has not been bundled; with no network access the icons silently disappeared; inline SVGs are bundled at build time and render correctly offline
+
+
 
 Counterparties Explorer — keep receipt visible in background
 
