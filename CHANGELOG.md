@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.12.5 (2026-04-03)
+
+### Bug fixes
+
+- **Frontend / Backend: historical exchange rate used for foreign-currency receipts** — the currency converter previously always fetched the *current* live rate even when the receipt had an older date, meaning a 2022 GBP receipt would be converted at the 2026 rate, producing an incorrect EUR figure for tax reporting. The `GET /fx-rate` proxy endpoint now accepts an optional `date=YYYY-MM-DD` query parameter and calls the Frankfurter historical endpoint (`/v1/YYYY-MM-DD?from=…&to=EUR`) when it is present, falling back to `/v1/latest` only when no date is available. The `CurrencyConverter` frontend component gains a `receiptDate` prop and appends `&date=…` to the proxy URL when the receipt has a date; the rate resets and re-fetches automatically whenever the receipt or its date changes. The displayed "as of" label now reflects the actual rate date returned by the API (which may be the nearest preceding business day for weekends and holidays).
+
+- **Frontend: missing i18n keys in the currency converter section** — three translation keys used by the currency converter component (`preview.field_currency`, `preview.rate_label`, `preview.rate_as_of`) had no entries in either locale file and were silently falling back to their English `defaultValue` strings in German mode. Keys added: `field_currency` → `Währung` / `Currency`, `rate_label` → `Kurs` / `Rate`, `rate_as_of` → `Stand {{date}}` / `as of {{date}}`.
+
 ## Version 0.12.4 (2026-04-03)
 
 ### Bug fixes

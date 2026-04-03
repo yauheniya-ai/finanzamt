@@ -233,9 +233,12 @@ def health():
 
 
 @app.get("/fx-rate", tags=["meta"])
-def fx_rate(from_currency: str = Query(..., alias="from"), to: str = "EUR"):
-    """Proxy Frankfurter exchange-rate lookup so the browser avoids CORS issues."""
-    url = f"https://api.frankfurter.dev/v1/latest?from={from_currency.upper()}&to={to.upper()}"
+def fx_rate(from_currency: str = Query(..., alias="from"), to: str = "EUR", date: Optional[str] = None):
+    """Proxy Frankfurter exchange-rate lookup so the browser avoids CORS issues.
+    When `date` (YYYY-MM-DD) is supplied the historical rate for that day is
+    returned; otherwise the latest available rate is used."""
+    segment = date if date else "latest"
+    url = f"https://api.frankfurter.dev/v1/{segment}?from={from_currency.upper()}&to={to.upper()}"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "finamt/1.0"})
         with urllib.request.urlopen(req, timeout=8) as resp:
