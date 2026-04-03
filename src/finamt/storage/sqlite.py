@@ -151,6 +151,16 @@ class SQLiteRepository:
         """)
         self._conn.commit()
 
+        # project_metadata — key/value store for project-level settings (e.g. taxpayer profile)
+        self._conn.executescript("""
+            CREATE TABLE IF NOT EXISTS project_metadata (
+                key        TEXT PRIMARY KEY,
+                value      TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+        """)
+        self._conn.commit()
+
     def _create_tables(self) -> None:
         self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS counterparties (
@@ -1003,3 +1013,42 @@ class SQLiteRepository:
         _vw_raw = row["validation_warnings"] if "validation_warnings" in row.keys() else None
         receipt.validation_warnings = json.loads(_vw_raw) if _vw_raw else []
         return receipt
+
+    # ------------------------------------------------------------------
+    # Project metadata (key/value store)
+    # ------------------------------------------------------------------
+
+    def get_metadata(self, key: str) -> dict | None:
+        """Return the parsed JSON value for *key*, or None if not set."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT value FROM project_metadata WHERE key = ?", (key,)
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            return json.loads(row["value"])
+        except (json.JSONDecodeError, KeyError):
+            return None
+
+    def set_metadata(self, key: str, value: dict) -> None:
+        """Upsert *key* with the JSON-serialised *value*."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO project_metadata (key, value, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+                """,
+                (key, json.dumps(value, ensure_ascii=False), now),
+            )
+            self._conn.commit()
+
+    def delete_metadata(self, key: str) -> None:
+        """Remove *key* from project_metadata (no-op if absent)."""
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM project_metadata WHERE key = ?", (key,)
+            )
+            self._conn.commit()

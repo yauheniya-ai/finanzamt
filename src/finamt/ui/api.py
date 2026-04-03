@@ -15,6 +15,9 @@ GET    /projects                   — list projects under ~/.finamt/
 POST   /projects                   — create a new project folder
 DELETE /projects/{name}            — delete a project (keeps PDFs optional)
 GET    /databases                  — legacy alias for /projects
+GET    /taxpayer                   — read taxpayer profile for a project
+PUT    /taxpayer                   — save taxpayer profile for a project
+DELETE /taxpayer                   — clear taxpayer profile for a project
 POST   /receipts/upload
 GET    /receipts
 GET    /receipts/{id}
@@ -323,6 +326,45 @@ def delete_project(name: str, keep_pdfs: bool = Query(default=True)):
 def list_databases(active_db: Optional[str] = Query(default=None)):
     """Legacy alias for GET /projects — kept for backwards compatibility."""
     return list_projects_endpoint(active_db=active_db)
+
+
+# ---------------------------------------------------------------------------
+# Taxpayer profile  (stored in project_metadata under the key "taxpayer")
+# ---------------------------------------------------------------------------
+
+_TAXPAYER_KEY = "taxpayer"
+
+
+@app.get("/taxpayer", tags=["projects"])
+def get_taxpayer(db: Optional[str] = Query(default=None)):
+    """Return the taxpayer profile stored in this project's DB, or null."""
+    db_path = _resolve_db(db)
+    if not db_path.exists():
+        return {"taxpayer": None}
+    with _repo(db_path) as repo:
+        profile = repo.get_metadata(_TAXPAYER_KEY)
+    return {"taxpayer": profile}
+
+
+@app.put("/taxpayer", tags=["projects"])
+def set_taxpayer(body: dict = Body(...), db: Optional[str] = Query(default=None)):
+    """Save the taxpayer profile into this project's DB."""
+    db_path = _resolve_db(db)
+    # Initialise DB if it doesn't exist yet
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with _repo(db_path) as repo:
+        repo.set_metadata(_TAXPAYER_KEY, body)
+    return {"taxpayer": body}
+
+
+@app.delete("/taxpayer", status_code=status.HTTP_204_NO_CONTENT, tags=["projects"])
+def delete_taxpayer(db: Optional[str] = Query(default=None)):
+    """Remove the taxpayer profile from this project's DB."""
+    db_path = _resolve_db(db)
+    if not db_path.exists():
+        return
+    with _repo(db_path) as repo:
+        repo.delete_metadata(_TAXPAYER_KEY)
 
 
 # ---------------------------------------------------------------------------

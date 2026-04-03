@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 0.12.1 (2026-04-03)
+
+Taxpayer profile persisted in project database instead of browser localStorage
+
+- **`project_metadata` table** — new key/value table added to the SQLite schema via the existing idempotent `_migrate()` path (`CREATE TABLE IF NOT EXISTS project_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)`); existing databases are migrated automatically on first open
+- **`get_metadata` / `set_metadata` / `delete_metadata`** — three new methods on `SQLiteRepository`; values are stored as JSON; `set_metadata` uses `INSERT … ON CONFLICT DO UPDATE` (upsert) so repeated saves are safe
+- **`GET /taxpayer`** — new endpoint returning `{"taxpayer": {...} | null}` for the active project; accepts `?db=` like all other endpoints; returns `{"taxpayer": null}` for projects with no DB yet
+- **`PUT /taxpayer`** — saves the request body JSON as the taxpayer profile under the key `"taxpayer"` in `project_metadata`; initialises the DB directory if it does not exist yet
+- **`DELETE /taxpayer`** — removes the taxpayer profile from `project_metadata` (204 No Content); no-op when the DB or key is absent
+- **Frontend: localStorage removed** — `taxpayerKey()` and `loadTaxpayer()` helpers removed from `App.tsx`; the `taxpayer` state is now initialised to `null` and populated via `GET /taxpayer` whenever `activeDb` changes; saves and clears fire `PUT` / `DELETE` to the API (fire-and-forget, state updated optimistically); taxpayer data is now portable across browsers and devices for the same project
+
+
 ## Version 0.12.0 (2026-04-03)
 
 CLI rewrite: argparse → Typer with Rich colours and ASCII banner
