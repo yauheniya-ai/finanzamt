@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 0.12.4 (2026-04-03)
+
+### Bug fixes
+
+- **Frontend: exchange-rate fetch hardened and CORS fixed** — browser-side calls to `api.frankfurter.app` were blocked by a CORS policy because the API redirects to `api.frankfurter.dev`, which does not send `Access-Control-Allow-Origin` headers. The request is now made server-side via a new `GET /fx-rate?from=XXX&to=EUR` proxy endpoint in `api.py` (stdlib `urllib.request`, no new dependencies). The frontend `CurrencyConverter` component calls the local backend instead. Additionally: the response is now validated (`res.ok` check plus null-rate check), two distinct error messages are shown (`rate_fetch_failed` vs `rate_no_data`), a **Retry** button re-triggers the fetch without clearing a manually-typed rate, and the placeholder changes from empty to "enter manually" when no live rate is available.
+
+- **Frontend: missing exchange rate now shown as a prominent warning** — when a receipt is in a non-EUR currency and no exchange rate could be resolved (live fetch failed and no manual rate entered), the UI previously displayed amounts silently in the receipt currency while tax reports (`generate_eur`, UStVA) used the raw foreign-currency amounts as if they were EUR, producing incorrect totals. Two warning banners are now rendered: one inside the amounts card (below the converter) and one in the top status-banner area (always visible regardless of scroll position). Both banners disappear automatically as soon as a rate is entered. New i18n keys added: `rate_fetch_failed`, `rate_no_data`, `rate_retry`, `rate_manual_placeholder`, `no_rate_warning`, `no_rate_banner` (German and English).
+
+- **Frontend: edit-mode amount fields now use the locale's decimal separator** — opening edit mode populated numeric fields (GESAMT, MWST. %, MWST. Betrag, item amounts, VAT-split fields) using JavaScript's `.toString()`, which always produces a dot (e.g. `9.76`). In German locale all other values are displayed with a comma, so the inputs appeared inconsistent or confusing. A new `numToInputStr` helper formats numbers with up to 5 significant decimal places, strips trailing zeros, and replaces the dot with a comma when the active language is `de` (e.g. `9.76 → "9,76"`, `0.1 → "0,1"`, `10.0 → "10"`). All `.toString()` calls in `startEditing`, item-draft initialisation, and VAT-split-draft initialisation are replaced with `numToInputStr()`. The existing `parseDecimal` helper already accepts both separators on save, so round-tripping is consistent.
+
 ## Version 0.12.3 (2026-04-03)
 
 ### Bug fixes

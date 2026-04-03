@@ -37,6 +37,7 @@ from __future__ import annotations
 import asyncio
 import json
 import tempfile
+import urllib.request
 from datetime import date
 from pathlib import Path
 from typing import Annotated, Optional
@@ -229,6 +230,22 @@ def health():
         "db_path":           str(_DEFAULT_DB),
         "db_exists":         _DEFAULT_DB.exists(),
     }
+
+
+@app.get("/fx-rate", tags=["meta"])
+def fx_rate(from_currency: str = Query(..., alias="from"), to: str = "EUR"):
+    """Proxy Frankfurter exchange-rate lookup so the browser avoids CORS issues."""
+    url = f"https://api.frankfurter.dev/v1/latest?from={from_currency.upper()}&to={to.upper()}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "finamt/1.0"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Rate lookup failed: {exc}") from exc
+    rate = (data.get("rates") or {}).get(to.upper())
+    if rate is None:
+        raise HTTPException(status_code=404, detail=f"No rate for {from_currency} → {to}")
+    return {"base": from_currency.upper(), "to": to.upper(), "rate": rate, "date": data.get("date")}
 
 
 @app.get("/config", tags=["meta"])
