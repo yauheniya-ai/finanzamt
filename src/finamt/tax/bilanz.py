@@ -16,7 +16,13 @@ Simplified Jahresabschluss (Bilanz + GuV) for GmbH / UG.
      - Briefing a tax advisor
 
    For full E-Bilanz submission (mandatory for GmbH via ELSTER), the figures
-   produced here must be mapped to the HGB taxonomy and reviewed by a Steuerberater.
+   produced here must be mapped to the HGB taxonomy before transmission.
+
+   There is no statutory obligation to involve a Steuerberater for a
+   Kleinstkapitalgesellschaft (§ 267a HGB).  The Geschäftsführer may prepare and
+   submit the annual accounts, E-Bilanz (ELSTER) and Bundesanzeiger filing directly,
+   provided they meet the factual requirements.  An ELSTER organisation certificate
+   for the GmbH is required for electronic submission.
 
 Legal basis:
   - §§ 242–256a HGB (Bilanz + GuV)
@@ -108,12 +114,17 @@ class Bilanz:
     aktive_rap:             Decimal = _ZERO   # Konto 0980
 
     # --- Passiva ---
-    stammkapital:           Decimal = _ZERO   # Konto 2900
-    kapitalrücklage:        Decimal = _ZERO   # Konto 2910
-    jahresergebnis:         Decimal = _ZERO   # computed
-    gewinnvortrag:          Decimal = _ZERO   # from prior year
-    rückstellungen:         Decimal = _ZERO   # not auto-derived
-    verbindlichkeiten:      Decimal = _ZERO   # approx. from outstanding purchases
+    stammkapital:               Decimal = _ZERO   # Konto 2900
+    kapitalrücklage:            Decimal = _ZERO   # Konto 2910
+    jahresergebnis:             Decimal = _ZERO   # computed
+    gewinnvortrag:              Decimal = _ZERO   # from prior year
+    # § 272 Abs. 1 S. 2 HGB — Nettomethode: non-called-up outstanding contributions
+    # deducted from equity on the Passiva side (leaves Aktiva = Kassenbestand only).
+    # With Bruttomethode (nettomethode=False) this stays _ZERO; instead
+    # ausstehende_einlagen appears on the Aktiva side.
+    nicht_eingeforderte_einlagen: Decimal = _ZERO  # Konto 2901 deduction
+    rückstellungen:             Decimal = _ZERO   # not auto-derived
+    verbindlichkeiten:          Decimal = _ZERO   # approx. from outstanding purchases
 
     @property
     def summe_aktiva(self) -> Decimal:
@@ -130,6 +141,7 @@ class Bilanz:
     def summe_eigenkapital(self) -> Decimal:
         return _r(
             self.stammkapital
+            - self.nicht_eingeforderte_einlagen   # § 272 I S.2 HGB deduction
             + self.kapitalrücklage
             + self.jahresergebnis
             + self.gewinnvortrag
@@ -160,14 +172,15 @@ class Bilanz:
                 "summe_aktiva":          str(self.summe_aktiva),
             },
             "passiva": {
-                "stammkapital":          str(self.stammkapital),
-                "kapitalrücklage":       str(self.kapitalrücklage),
-                "jahresergebnis":        str(self.jahresergebnis),
-                "gewinnvortrag":         str(self.gewinnvortrag),
-                "summe_eigenkapital":    str(self.summe_eigenkapital),
-                "rückstellungen":        str(self.rückstellungen),
-                "verbindlichkeiten":     str(self.verbindlichkeiten),
-                "summe_passiva":         str(self.summe_passiva),
+                "stammkapital":                  str(self.stammkapital),
+                "kapitalrücklage":               str(self.kapitalrücklage),
+                "nicht_eingeforderte_einlagen":  str(self.nicht_eingeforderte_einlagen),
+                "jahresergebnis":                str(self.jahresergebnis),
+                "gewinnvortrag":                 str(self.gewinnvortrag),
+                "summe_eigenkapital":            str(self.summe_eigenkapital),
+                "rückstellungen":                str(self.rückstellungen),
+                "verbindlichkeiten":             str(self.verbindlichkeiten),
+                "summe_passiva":                 str(self.summe_passiva),
             },
             "bilanz_ausgeglichen": self.bilanz_ausgeglichen,
         }
@@ -296,11 +309,13 @@ class Jahresabschluss:
             "",
             "  ── BILANZ (PASSIVA) ─────────────────────────────────",
             row("A. Eigenkapital", _ZERO),
-            row("   I.  Gezeichnetes Kapital",     b.stammkapital, indent=3),
-            row("   II. Kapitalrücklage",          b.kapitalrücklage, indent=3),
-            row("   III.Jahresergebnis",           b.jahresergebnis, indent=3),
-            row("   IV. Gewinn-/Verlustvortrag",   b.gewinnvortrag, indent=3),
-            row("   = Summe Eigenkapital",         b.summe_eigenkapital, indent=3),
+            row("   I.  Gezeichnetes Kapital",             b.stammkapital, indent=3),
+        ] + ([row("   ./. nicht eingeforderte Einlagen",   -b.nicht_eingeforderte_einlagen, indent=3)]
+              if b.nicht_eingeforderte_einlagen else []) + [
+            row("   II. Kapitalrücklage",                  b.kapitalrücklage, indent=3),
+            row("   III.Jahresergebnis",                   b.jahresergebnis, indent=3),
+            row("   IV. Gewinn-/Verlustvortrag",           b.gewinnvortrag, indent=3),
+            row("   = Summe Eigenkapital",                 b.summe_eigenkapital, indent=3),
             row("B. Rückstellungen",               b.rückstellungen),
             row("C. Verbindlichkeiten",            b.verbindlichkeiten),
             "  " + "─" * (W - 2),
@@ -315,8 +330,10 @@ class Jahresabschluss:
             lines.append("     → manuelle Buchungen oder Rückstellungen erforderlich")
         lines += [
             "",
-            "  ⚠  Nur für interne Zwecke. Für E-Bilanz / Bundesanzeiger",
-            "     Prüfung durch Steuerberater erforderlich.",
+            "  ℹ  Kleinstkapitalgesellschaft (§ 267a HGB): Es besteht keine gesetzliche Pflicht,",
+            "     einen Steuerberater einzuschalten. E-Bilanz (ELSTER), Jahresabschluss und",
+            "     Bundesanzeiger-Einreichung können von der Geschäftsführung selbst erledigt",
+            "     werden. Voraussetzung: fachliche Kenntnisse und ein ELSTER-Zertifikat.",
             "=" * W,
         ]
         return "\n".join(lines)
@@ -337,6 +354,8 @@ def generate_jahresabschluss(
     eingezahltes_kapital: Decimal,
     vortrag_gewinnverlust: Decimal = _ZERO,
     rückstellungen: Decimal = _ZERO,
+    nettomethode: bool = True,
+    kassen_eröffnungsbestand: Decimal | None = None,
 ) -> Jahresabschluss:
     """
     Derive an approximate Jahresabschluss from receipt data.
@@ -351,10 +370,23 @@ def generate_jahresabschluss(
         Registered share capital (e.g. Decimal("25000") for a standard GmbH).
     eingezahltes_kapital:
         Amount actually paid in at balance-sheet date (≥ 50% of Stammkapital).
+        For Gründungsjahr: the initial payment (e.g. Decimal("12500")).
     vortrag_gewinnverlust:
-        Cumulative profit/loss from prior years.
+        Cumulative profit/loss carried forward from prior years (equity only —
+        NOT added to the cash calculation).
     rückstellungen:
         Manually entered provisions (e.g. tax provisions) — not derivable from receipts.
+    nettomethode:
+        If True (default): apply § 272 Abs. 1 S. 2 HGB — non-called-up outstanding
+        contributions are deducted from equity on the Passiva side.  The Aktiva side
+        shows only the actual cash balance → Bilanzsumme equals eingezahltes Kapital.
+        If False (Bruttomethode): outstanding contributions appear as an asset on the
+        Aktiva side and the full Stammkapital is shown on the Passiva side.
+    kassen_eröffnungsbestand:
+        Opening cash balance at the start of the year.  Leave as None for the
+        Gründungsjahr (year 1) — the function then uses *eingezahltes_kapital* as the
+        opening cash.  For subsequent years, pass the prior year's closing cash so the
+        calculation does not double-count the initial capital injection.
 
     Returns
     -------
@@ -404,26 +436,40 @@ def generate_jahresabschluss(
     # -------------------------------------------------------------------
     ausstehende = _r(stammkapital - eingezahltes_kapital)
 
-    # Cash approximation:
-    #   paid-in capital + net revenue received − net expenses paid
-    # This assumes all invoiced amounts have been received/paid (cash basis).
+    # Opening cash:
+    #   • Gründungsjahr (kassen_eröffnungsbestand is None): the paid-in capital IS
+    #     the opening cash (the Gesellschafter wired the money at incorporation).
+    #   • Subsequent years: caller supplies the prior year's closing cash; the initial
+    #     Einlage is already embedded in that figure and must NOT be added again.
+    opening = eingezahltes_kapital if kassen_eröffnungsbestand is None else kassen_eröffnungsbestand
+
+    # Cash approximation (cash-basis):
+    #   opening + revenues received − expenses paid
+    # Note: vortrag_gewinnverlust is an equity position, not a cash movement — it
+    # must NOT be added to the cash balance here.
     kassenbestand = _r(
-        eingezahltes_kapital
+        opening
         + guv.umsatzerlöse
         + guv.sonstige_betriebserlöse
         - guv.materialaufwand
         - guv.sonstige_betriebsausgaben
-        + vortrag_gewinnverlust
     )
+
+    # § 272 Abs. 1 HGB — outstanding contributions (Ausstehende Einlagen):
+    #   Nettomethode (default, § 272 I S. 2):  deducted from equity on Passiva.
+    #   Bruttomethode              (§ 272 I S. 1):  shown as asset on Aktiva.
+    aktiva_ausstehend  = _ZERO     if nettomethode else ausstehende
+    nicht_eingefordert = ausstehende if nettomethode else _ZERO
 
     bilanz = Bilanz(
         year=year,
-        kassenbestand        = max(kassenbestand, _ZERO),
-        ausstehende_einlagen = ausstehende,
-        stammkapital         = stammkapital,
-        jahresergebnis       = guv.jahresergebnis,
-        gewinnvortrag        = vortrag_gewinnverlust,
-        rückstellungen       = rückstellungen,
+        kassenbestand                = max(kassenbestand, _ZERO),
+        ausstehende_einlagen         = aktiva_ausstehend,
+        stammkapital                 = stammkapital,
+        nicht_eingeforderte_einlagen = nicht_eingefordert,
+        jahresergebnis               = guv.jahresergebnis,
+        gewinnvortrag                = vortrag_gewinnverlust,
+        rückstellungen               = rückstellungen,
     )
 
     return Jahresabschluss(bilanz=bilanz, guv=guv, skipped_count=skipped)
