@@ -34,26 +34,26 @@ managing receipts
 ## Tech Stack
 
 **Backend**
-- <img src="https://api.iconify.design/devicon:python.svg" width="16" height="16"> Python — package language
-- <img src="https://api.iconify.design/devicon:fastapi.svg" width="16" height="16"> FastAPI — backend for the web UI
-- <img src="https://api.iconify.design/simple-icons:paddlepaddle.svg" width="16" height="16"> PaddleOCR — OCR for scanned PDFs 
-- <img src="https://api.iconify.design/devicon:google.svg" width="16" height="16"> Tesseract — OCR for scanned PDFs and images when PaddleOCR fails or times out
-- <img src="https://api.iconify.design/devicon:ollama.svg" width="16" height="16"> Ollama — local LLMs for structured extraction of information from receipts and invoices
-- <img src="https://upload.wikimedia.org/wikipedia/commons/6/69/Qwen_logo.svg" width="16" height="16"> Qwen – laptop-compatible LLMs with qwen2.5:7b-instruct-q4_K_M currently as preferred default for text-based extraction
-- <img src="https://api.iconify.design/devicon:sqlite.svg" width="16" height="16"> SQLite – local database for original receipts and extracted data
+- <img src="https://api.iconify.design/devicon:python.svg" width="16" height="16"> [Python](https://www.python.org) — package language
+- <img src="https://api.iconify.design/devicon:fastapi.svg" width="16" height="16"> [FastAPI](https://fastapi.tiangolo.com) — backend for the web UI
+- <img src="https://api.iconify.design/simple-icons:paddlepaddle.svg" width="16" height="16"> [PaddleOCR](https://github.com/PADDLEPADDLE/PADDLEOCR) — OCR for scanned PDFs 
+- <img src="https://api.iconify.design/devicon:google.svg" width="16" height="16"> [Tesseract](https://github.com/tesseract-ocr/tesseract) — OCR for scanned PDFs and images when PaddleOCR fails or times out
+- <img src="https://api.iconify.design/devicon:ollama.svg" width="16" height="16"> [Ollama](https://ollama.com) — local LLMs for structured extraction of information from receipts and invoices
+    - <img src="https://upload.wikimedia.org/wikipedia/commons/6/69/Qwen_logo.svg" width="16" height="16"> [Qwen](https://qwen.ai/home) – laptop-compatible LLMs with qwen2.5:7b-instruct-q4_K_M currently as preferred default for text-based extraction
+- <img src="https://api.iconify.design/devicon:sqlite.svg" width="16" height="16"> [SQLite](https://sqlite.org) – local database for original receipts and extracted data
 
 **Frontend**
-- <img src="https://api.iconify.design/devicon:react.svg" width="16" height="16"> React — interactive frontend
-- <img src="https://api.iconify.design/devicon:vitejs.svg" width="16" height="16"> Vite — fast dev server and production bundler
-- <img src="https://api.iconify.design/devicon:tailwindcss.svg" width="16" height="16"> Tailwind CSS — utility-first styling
-- <img src="https://api.iconify.design/devicon:typescript.svg" width="16" height="16"> TypeScript — type-safe component and API code
+- <img src="https://api.iconify.design/devicon:react.svg" width="16" height="16"> [React](https://react.dev) — interactive frontend
+- <img src="https://api.iconify.design/devicon:vitejs.svg" width="16" height="16"> [Vite](https://vite.dev) — fast dev server and production bundler
+- <img src="https://api.iconify.design/devicon:tailwindcss.svg" width="16" height="16"> [Tailwind CSS](https://tailwindcss.com) — utility-first styling
+- <img src="https://api.iconify.design/devicon:typescript.svg" width="16" height="16"> [TypeScript](https://www.typescriptlang.org) — type-safe component and API code
 
 
 **CLI**
 - <img src="https://api.iconify.design/devicon:typer.svg" width="16" height="16"> [Typer](https://typer.tiangolo.com/) — CLI with coloured progress output
 
 **Packaging**
-- <img src="https://api.iconify.design/devicon:pypi.svg" width="16" height="16"> PyPI — distributed as an installable Python package
+- <img src="https://api.iconify.design/devicon:pypi.svg" width="16" height="16"> [PyPI](https://pypi.org/project/finamt/) — distributed as an installable Python package
 
 ## Installation
 
