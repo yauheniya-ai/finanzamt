@@ -2,7 +2,21 @@
 
 ## Version 0.13.0 (2026-04-04)
 
+### New features
 
+- **Backend: `POST /receipts` — manual receipt entry without a file** — a new endpoint accepts a JSON body (`date`, `vendor`, `receipt_type`, `category`, `net_amount`, `vat_percentage`, `description`, `currency`) and creates a `ReceiptData` record directly in the project database. The receipt ID is a SHA-256 hash of a unique seed (UUID4), so each manual entry is always distinct. Net / total / VAT amounts are computed from `net_amount × (1 + vat_percentage / 100)`. Returns the same response shape as the upload endpoint. Useful for entries that have no file (VAT refunds from Finanzamt, bank fees, cash outlays).
+
+- **Frontend: "Manual Entry" button and modal** — a new amber *Manual Entry* button is shown below the *Upload Receipt* / *Upload Invoice* button in the sidebar. Clicking it opens a modal with fields: type toggle (Ausgabe / Einnahme), date, counterparty, category dropdown, net amount, VAT rate (0 / 7 / 19 %), and optional notes. On save the frontend POSTs to `POST /receipts`, inserts the returned record into the list, and auto-selects it. Works with the active project DB like upload does.
+
+- **Frontend: GmbH company facts persisted in taxpayer profile** — founding year (`gründungsjahr`), registered share capital (`stammkapital`), and paid-in capital at founding (`eingezahlt`) are now part of `TaxpayerProfile` and are stored in the project database via the existing `PUT /taxpayer` endpoint. Previously these values were local React state that reset to hardcoded defaults on every page reload. The taxpayer modal gains a new *Company / GmbH Facts* section with three number inputs for these fields. The *Annual Financial Statements* panel reads the values from the persisted taxpayer profile, shows them as read-only badges, and provides an *Edit →* link that opens the taxpayer modal directly.
+
+### Bug fixes / improvements
+
+- **Frontend: balance sheet badge no longer uses an em dash** — the `jab_balanced` string previously read `"Balance sheet balances — Aktiva = Passiva."` / `"Bilanz ausgeglichen — Aktiva = Passiva."` where the em dash could be misread as a minus sign. Reformulated to `"Balance sheet balanced: Aktiva = Passiva."` / `"Bilanz ausgeglichen: Aktiva = Passiva."`.
+
+- **Frontend: share-capital label corrected in both locales** — the English translation showed `"Stammkapital (reg.)"` (German word); corrected to `"Share capital (reg.)"`. The German label changed from `"Stammkapital (eingetragen)"` to `"Stammkapital (reg.)"` for consistency.
+
+- **Frontend: singular/plural type labels corrected in DE locale** — the type-toggle in the upload section and the manual-entry modal use the singular keys `sidebar.expense` / `sidebar.revenue` (individual transaction type), while the receipt-list section headers use the plural `sidebar.expenses` / `sidebar.revenues`. The German `sidebar.revenue` key was incorrectly set to `"Einnahmen"` (plural); corrected to `"Einnahme"`.
 
 ## Version 0.12.6 (2026-04-03)
 
