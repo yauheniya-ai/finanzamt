@@ -105,6 +105,9 @@ class USTVAReport:
     period_end:     date
     lines:          dict[str, USTVALineItem] = field(default_factory=dict)
     skipped_count:  int = 0
+    # Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG) — import VAT assessed
+    # by customs; tracked separately for ELSTER line 62 (pre-return) / 124 (annual).
+    einfuhr_vat:    Decimal = field(default_factory=Decimal)
 
     # ------------------------------------------------------------------
     # Aggregated totals
@@ -112,8 +115,8 @@ class USTVAReport:
 
     @property
     def total_input_vat(self) -> Decimal:
-        """Total Vorsteuer across all rates (from purchases)."""
-        return sum((ln.purchase_vat for ln in self.lines.values()), Decimal("0"))
+        """Total Vorsteuer across all rates (from purchases) + Einfuhrumsatzsteuer."""
+        return sum((ln.purchase_vat for ln in self.lines.values()), Decimal("0")) + self.einfuhr_vat
 
     @property
     def total_output_vat(self) -> Decimal:
@@ -158,6 +161,7 @@ class USTVAReport:
             "skipped_count":     self.skipped_count,
             "total_purchase_net": str(self.total_purchase_net),
             "total_input_vat":   str(self.total_input_vat),
+            "einfuhr_vat":       str(self.einfuhr_vat),
             "total_sale_net":    str(self.total_sale_net),
             "total_output_vat":  str(self.total_output_vat),
             "net_liability":     str(self.net_liability),
@@ -204,8 +208,12 @@ class USTVAReport:
                     f"      Saldo          : {ln.net_liability:>+10.2f} EUR",
                 ]
 
+        lines += [hdiv]
+        if self.einfuhr_vat > 0:
+            lines += [
+                f"  Einfuhrumsatzsteuer : {self.einfuhr_vat:>10.2f} EUR  (\u00a7 15 Abs. 1 Nr. 2)",
+            ]
         lines += [
-            hdiv,
             f"  Gesamt Vorsteuer    : {self.total_input_vat:>10.2f} EUR",
             f"  Gesamt Umsatzsteuer : {self.total_output_vat:>10.2f} EUR",
             hdiv,
@@ -230,7 +238,7 @@ def generate_ustva(
     Skips receipts that:
     - have no ``receipt_date``
     - fall outside the period
-    - have no ``vat_amount`` or ``vat_amount <= 0``
+    - have no VAT amount at all (no ``vat_amount`` and no ``einfuhr_vat``)
     """
     report = USTVAReport(period_start=period_start, period_end=period_end)
     start = _to_date(period_start)
@@ -243,8 +251,21 @@ def generate_ustva(
         if not (start <= _to_date(r.receipt_date) <= end):
             report.skipped_count += 1
             continue
-        if not r.vat_amount or r.vat_amount <= 0:
+
+        has_vat     = bool(r.vat_amount and r.vat_amount > 0)
+        ev          = getattr(r, "einfuhr_vat", None)
+        has_einfuhr = bool(r.is_purchase and ev and ev > 0)
+
+        if not has_vat and not has_einfuhr:
             report.skipped_count += 1
+            continue
+
+        # Einfuhrumsatzsteuer — track at report level (not per-rate line)
+        if has_einfuhr:
+            report.einfuhr_vat += _r(ev)
+
+        # Per-rate regular VAT lines
+        if not has_vat:
             continue
 
         # Rate key

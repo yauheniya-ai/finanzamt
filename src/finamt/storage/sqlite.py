@@ -100,6 +100,7 @@ class SQLiteRepository:
             ("receipts",           "description",          "TEXT"),
             ("receipts",           "private_use_share",    "TEXT DEFAULT '0'"),
             ("receipts",           "validation_warnings",  "TEXT"),
+            ("receipts",           "einfuhr_vat",          "TEXT"),
         ]:
             try:
                 self._conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {typedef}")
@@ -387,8 +388,8 @@ class SQLiteRepository:
                    (id, counterparty_id, receipt_type, receipt_number,
                     receipt_date, total_amount, vat_percentage, vat_amount,
                     currency, category, subcategory, description,
-                    private_use_share, validation_warnings, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    private_use_share, validation_warnings, einfuhr_vat, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     receipt.id, cp_id, str(receipt.receipt_type),
                     receipt.receipt_number, date_str,
@@ -401,6 +402,7 @@ class SQLiteRepository:
                     getattr(receipt, "description", None) or None,
                     str(getattr(receipt, "private_use_share", "0") or "0"),
                     json.dumps(getattr(receipt, "validation_warnings", []) or []),
+                    str(getattr(receipt, "einfuhr_vat", None) or "") or None,
                     self._now(),
                 ),
             )
@@ -596,6 +598,7 @@ class SQLiteRepository:
             "receipt_type", "receipt_number", "receipt_date",
             "total_amount", "vat_percentage", "vat_amount", "currency", "category",
             "subcategory", "description", "private_use_share", "validation_warnings",
+            "einfuhr_vat",
         }
         # Financial fields whose change should trigger posting regeneration
         _POSTING_SENSITIVE = {
@@ -618,6 +621,12 @@ class SQLiteRepository:
         for field in ("total_amount", "vat_percentage", "vat_amount"):
             if field in receipt_updates and receipt_updates[field] is not None:
                 receipt_updates[field] = str(receipt_updates[field])
+        if "einfuhr_vat" in receipt_updates:
+            try:
+                ev = receipt_updates["einfuhr_vat"]
+                receipt_updates["einfuhr_vat"] = str(Decimal(str(ev))) if ev not in (None, "") else None
+            except Exception:
+                receipt_updates.pop("einfuhr_vat", None)
         if "currency" in receipt_updates:
             raw_cur = str(receipt_updates["currency"]).strip().upper()
             receipt_updates["currency"] = raw_cur if (2 <= len(raw_cur) <= 4 and raw_cur.isalpha()) else "EUR"
@@ -1056,6 +1065,8 @@ class SQLiteRepository:
         receipt.validation_warnings = json.loads(_vw_raw) if _vw_raw else []
         # created_at — when the receipt was first stored (UTC ISO-8601 string)
         receipt.created_at = row["created_at"] if "created_at" in row.keys() else None
+        # einfuhr_vat — Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG)
+        receipt.einfuhr_vat = self._dec(row["einfuhr_vat"]) if "einfuhr_vat" in row.keys() else None
         return receipt
 
     # ------------------------------------------------------------------

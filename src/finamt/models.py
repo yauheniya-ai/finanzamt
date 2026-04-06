@@ -365,6 +365,12 @@ class ReceiptData:
     # ``generate_postings()`` so the full audit trail is preserved.
     private_use_share: Decimal = field(default_factory=lambda: Decimal("0"))
 
+    # einfuhr_vat — Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG)
+    # Import VAT assessed by customs (EUSt-Bescheid) on goods imported from
+    # non-EU countries.  Stored separately from the invoice VAT so it can be
+    # reported on the correct ELSTER line (Voranmeldung: 62; Jahreserklärung: 124).
+    einfuhr_vat: Optional[Decimal] = None
+
     def __post_init__(self) -> None:
         self.id = _content_hash(self.raw_text)
 
@@ -546,6 +552,7 @@ class ReceiptData:
             "vat_splits":       getattr(self, "vat_splits", []),
             "validation_warnings": getattr(self, "validation_warnings", []),
             "created_at":       getattr(self, "created_at", None),
+            "einfuhr_vat":      float(self.einfuhr_vat) if getattr(self, "einfuhr_vat", None) is not None else None,
         }
 
     def to_json(self) -> str:
