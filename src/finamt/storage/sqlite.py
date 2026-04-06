@@ -1054,6 +1054,8 @@ class SQLiteRepository:
         # validation_warnings — default to [] for receipts created before this column existed
         _vw_raw = row["validation_warnings"] if "validation_warnings" in row.keys() else None
         receipt.validation_warnings = json.loads(_vw_raw) if _vw_raw else []
+        # created_at — when the receipt was first stored (UTC ISO-8601 string)
+        receipt.created_at = row["created_at"] if "created_at" in row.keys() else None
         return receipt
 
     # ------------------------------------------------------------------

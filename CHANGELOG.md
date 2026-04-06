@@ -1,5 +1,7 @@
 # Changelog
 
+## Version 0.14.2 (2026-04-06)
+
 ## Version 0.14.1 (2026-04-06)
 
 ### New features

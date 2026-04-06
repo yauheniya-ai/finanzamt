@@ -545,6 +545,7 @@ class ReceiptData:
             "items":            [item.to_dict() for item in self.items],
             "vat_splits":       getattr(self, "vat_splits", []),
             "validation_warnings": getattr(self, "validation_warnings", []),
+            "created_at":       getattr(self, "created_at", None),
         }
 
     def to_json(self) -> str:
