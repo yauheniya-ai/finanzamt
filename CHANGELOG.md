@@ -1,6 +1,22 @@
 # Changelog
 
-## Version 0.14.3 (2026-04-06)
+## Version 0.14.4 (2026-04-08)
+
+### New features
+
+- **Frontend: Collapsible "Unternehmens-/GmbH-Daten" section in taxpayer modal** — the company-facts block (Gegenstand, Rechtsform, Betriebsstätte toggles, Gründungsjahr, Stammkapital, Eingezahlt, Hebesatz) is now hidden behind a chevron toggle (`companyOpen` state, collapsed by default). This keeps the modal compact for sole traders and freelancers who do not need GmbH-specific fields.
+
+- **Frontend: `labelWidth` prop on `FieldRow` in PreviewPanel** — the `FieldRow` component accepts an optional `labelWidth` string (Tailwind class, default `w-28`). The Einfuhrumsatzsteuer row in edit mode uses `labelWidth="w-40"` to prevent the longer label from wrapping, and is placed before the Netto field to match the ELSTER form order.
+
+- **Frontend: ELSTER tooltips across UStVA and UStE panels** — a new `ElsterTip` component renders the ELSTER green-asterisk logo next to a row label and shows a black tooltip on hover. The tooltip accepts a `lines: string[]` prop (rendered with line breaks) and applies `normal-case tracking-normal` to prevent uppercase CSS inheritance from parent table headers. Tooltips are wired in both panels:
+
+  - **UStVA** — "Steuerpflichtige Umsätze" heading (Kapitel 3), line 66 (two-line Kapitel 7 / § 15 citation), line 83 (Kapitel 9).
+  - **UStE** — "Steuerpflichtige Umsätze" heading (Kapitel 3); individual sales rows for 19 %, 7 %, and 0 % rates (Zeilen 22, 25, 28); Vorsteuerbeträge row (Kapitel 10, Zeile 79); Vorauszahlungssoll row (Kapitel 12, Zeile 119); Abschlusszahlung row (Zeile 120). Line numbers are removed from the UStE display as they refer to ELSTER form positions, not accounting line codes. The "Verbleibende Jahressteuer" sublabel and the separate line-83 net-liability row are removed from UStE; the Vorauszahlungssoll row always shows the full signed net-liability amount.
+
+  All tooltip strings are stored in `de.json` / `en.json` under `dashboard.elster_tip_*` keys.
+
+
+## Version 0.14.3 (2026-04-07)
 
 ### New features
 
