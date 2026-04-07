@@ -1,5 +1,24 @@
 # Changelog
 
+## Version 0.14.3 (2026-04-06)
+
+### New features
+
+- **Frontend: Einfuhrumsatzsteuer (§ 15 Abs. 1 Nr. 2 UStG) in UStVA and UStE panels** — the existing `einfuhr_vat: number | null` field on `Receipt` (import VAT on goods from non-EU countries, reported separately by customs) is now surfaced in both tax panels. In the **UStVA** panel, a dedicated line 62 row ("Einfuhrumsatzsteuer") is shown beneath the regular input-VAT row (line 66) whenever the period contains at least one receipt with a non-zero `einfuhr_vat`; the two rows are summed into the total input-VAT figure used for the net-liability calculation. In the annual **UStE** panel the same logic applies: lines 122 (regular Vorsteuer) and 124 (Einfuhrumsatzsteuer) are shown separately, followed by an optional line 131 subtotal when import VAT is present; both feed into the line-83 net-liability total. New i18n keys added: `vat_einfuhr_label` (DE: "Einfuhrumsatzsteuer § 15 Abs. 1 Nr. 2 UStG"; EN: "Import VAT § 15 (1) no. 2 UStG"), `uste_input_sum_label` (DE: "Summe Vorsteuerbeträge"; EN: "Total input VAT").
+
+- **Frontend: GewStE panel expanded with ELSTER-aligned sections and editable Betriebsstätte fields** — the Gewerbesteuererklärung panel is restructured into three labelled sections matching the GewSt 1 A form:
+
+  - **Allgemeine Angaben** (lines 3, 4, 14) — displays Unternehmen/Firma (from `taxpayer.name`), Gegenstand des Unternehmens (line 4, new `gegenstand` field), and Rechtsform (line 14, new `rechtsform` field, defaults to "GmbH"). Both fields are editable in the taxpayer modal and persisted in the project database.
+
+  - **Angaben zur Betriebsstätte** (lines 26–32) — lines 26 ("Betriebsstätten in mehreren Gemeinden"), 27 ("Betriebsstätte erstreckt sich über mehrere Gemeinden"), and 28 ("Einzige Betriebsstätte im Jahresverlauf verlegt") are now **editable Ja/Nein toggles** backed by three new boolean fields on `TaxpayerProfile` (`betriebsstaette_mehrere`, `betriebsstaette_erstreckt`, `betriebsstaette_verlegt`), stored in the project database and restored across sessions. "Ja" is highlighted in amber to draw attention. Lines 31 (PLZ) and 32 (Ort) are read from `taxpayer.postcode` / `taxpayer.city`. A small ✎ link next to each toggle opens the taxpayer modal directly.
+
+  - **Gewinn aus Gewerbebetrieb** — the computation table is unchanged in content but the Gewerbeertrag row is now labelled with ELSTER line number **39** (§ 7 GewStG).
+
+  - **Taxpayer modal** — a new "Betriebsstätte (GewSt 1A Z. 26–28)" section with styled Ja/Nein toggle buttons for the three flags is inserted into the modal's GmbH/Company-facts section; `gegenstand` and `rechtsform` text inputs are also added.
+
+  New i18n keys added (DE and EN): `gewst_allgemeine_angaben`, `gewst_firma`, `gewst_gegenstand`, `gewst_rechtsform`, `gewst_betriebsstaette`, `gewst_mehrere_gemeinden`, `gewst_erstreckt_gemeinden`, `gewst_verlegt`, `gewst_plz`, `gewst_ort`, `gewst_gewinn_section`; sidebar keys: `taxpayer_betriebsstaette_section`, `taxpayer_bs_mehrere`, `taxpayer_bs_erstreckt`, `taxpayer_bs_verlegt`, `taxpayer_gegenstand`, `taxpayer_rechtsform`.
+
+
 ## Version 0.14.2 (2026-04-06)
 
 ### New features
