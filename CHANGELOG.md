@@ -1,5 +1,22 @@
 # Changelog
 
+## Version 0.15.0 (2026-04-13)
+
+### New features / improvements
+
+- **Frontend: KSt 1 Abschnitt 4 · Steuerberechnung removed** — the KSt/SolZ/Gesamtbelastung rows were mistakenly placed inside the KSt 1 Hauptvordruck section; ELSTER's KSt 1 form does not contain a Steuerberechnung sub-section at this position; the rows and their unused computed variables (`koerperschaftsteuer`, `solidaritaet`, `gesamtbelastung`) are removed entirely.
+
+- **Frontend: Z.9 · Rechtsform reads from taxpayer profile** — the Rechtsform row in KSt 1 Abschnitt 1 now displays the value from `taxpayer.rechtsform` (same as Z.1 · Name); when the profile field is empty it shows a dim `—` with a tooltip directing the user to the taxpayer profile, instead of the generic "manuell in ELSTER" placeholder.
+
+- **Frontend: steuerliches Einlagekonto corrected to 0** — `einlagekontoAnfang` was previously set to `taxpayer.eingezahlt` (the partially paid-in Stammkapital fraction). `eingezahlt` is a partial Nennkapital payment and is already counted as Nennkapital — it does not constitute an entry in the steuerliches Einlagekonto (§ 27 KStG), which only records contributions *above* registered share capital (Agios, Zuzahlungen, etc.). For a standard GmbH with no such extras the Einlagekonto is 0. In a profitable year the old code would have understated ausschüttbarer Gewinn by the `eingezahlt` amount.
+
+- **Frontend: Z.17 Eigenkapital laut Steuerbilanz is now cumulative** — `eigenkapitalApprox` was previously `Stammkapital + current-year Steuerbilanzgewinn`, which reset to Stammkapital at the start of every VZ instead of carrying forward prior-year retained earnings / accumulated losses. It now sums the Steuerbilanzgewinn for every year from `taxpayer.gründungsjahr` through the VZ year-end using `allReceipts`, so the figure compounds correctly across years (e.g. 2022: 25 000 − 12 205 = 12 795; 2023: 12 795 − 318 = 12 477).
+
+- **Frontend: Z.19 explained in tooltip** — the Positiver Bestand des steuerlichen Einlagekontos row in Anlage KSt 1 F Abschnitt 3 gains an ElsterTip explaining that normal Stammkapital payments are *not* Einlagekonto contributions and that the field is 0 for a standard GmbH.
+
+- **Frontend: Z.17 action label simplified** — `kst_kst1_nein_action` changed from `⚠ Nein — aktiv anklicken!` to `☑ Nein`; `kst_manual_zero` changed from `0 € (manuell)` to `0 €` across all panels that use these shared keys.
+
+
 ## Version 0.14.4 (2026-04-08)
 
 ### New features

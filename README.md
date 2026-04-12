@@ -29,7 +29,7 @@ An agentic Python library for extracting structured data from receipts and invoi
 managing receipts
 - **Local-First** — Everything runs completely offline, with data stored in a local database
 - **4-Agent Pipeline** — Sequential specialised agents for metadata, counterparty, amounts, and line items; short focused prompts for reliable local model performance
-- **Web UI** — Full browser interface for uploading, reviewing, editing, and 
+- **Web UI** — Full browser interface for uploading, reviewing, editing, and managing receipts and invoices and preparing tax returns 
 
 ## Tech Stack
 
@@ -66,6 +66,12 @@ For CLI usage, installing via [pipx](https://pipx.pypa.io/) is recommended — i
 ```bash
 pipx install finamt
 ```
+
+> **Note for Python 3.14+ users:** `finamt` currently requires Python 3.13. If your system Python is 3.14 or newer, install [uv](https://docs.astral.sh/uv/) to manage Python versions and pass the resolved path to pipx:
+> ```bash
+> uv python install 3.13
+> pipx install finamt --python $(uv python find 3.13)
+> ```
 
 ### System Requirements
 
