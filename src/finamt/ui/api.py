@@ -62,6 +62,8 @@ try:
         resolve_project, validate_project_name, DB_FILENAME, DEFAULT_PROJECT,
     )
     from finamt.tax.ustva import generate_ustva
+    from finamt.tax.bilanz import generate_jahresabschluss
+    from finamt.tax.ebilanz import build_xbrl, EBilanzConfig
     _LIB_AVAILABLE = True
     _cfg = Config()
 except ImportError as _import_err:
@@ -858,6 +860,83 @@ def get_ustva(
         receipts = list(repo.find_by_period(start, end))
 
     return generate_ustva(receipts, start, end).to_dict()
+
+
+# ---------------------------------------------------------------------------
+# E-Bilanz XBRL
+# ---------------------------------------------------------------------------
+
+class EBilanzRequest(BaseModel):
+    year:               int
+    steuernummer:       str
+    company_name:       str
+    legal_form:         str = "GmbH"
+    fiscal_year_start:  str = ""
+    fiscal_year_end:    str = ""
+    stammkapital:       float = 25000.0
+    eingezahltes_kapital: float = 12500.0
+    vortrag:            float = 0.0
+    nettomethode:       bool  = True
+    preparer:           str = ""
+
+
+@app.post("/tax/ebilanz/xbrl", tags=["tax"])
+def post_ebilanz_xbrl(
+    body: EBilanzRequest,
+    db:   Optional[str] = Query(default=None),
+):
+    """
+    Generate an E-Bilanz XBRL instance document (§ 5b EStG).
+    Uses HGB taxonomy v6 (MicroBilG, § 267a HGB).
+
+    Returns the .xbrl file as an attachment ready for ERiC transmission.
+    """
+    if not _LIB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="finamt library not available")
+
+    from decimal import Decimal
+    from datetime import date as _date
+
+    year     = body.year
+    db_path  = _resolve_db(db)
+    start    = _date(year, 1, 1)
+    end      = _date(year, 12, 31)
+
+    receipts = []
+    if db_path.exists():
+        with _repo(db_path) as repo:
+            # Fetch all receipts since founding (needed for Gewinnvortrag calc)
+            receipts = list(repo.find_by_period(_date(2000, 1, 1), end))
+
+    cfg = EBilanzConfig(
+        steuernummer      = body.steuernummer,
+        company_name      = body.company_name,
+        legal_form        = body.legal_form,
+        fiscal_year_start = body.fiscal_year_start or str(start),
+        fiscal_year_end   = body.fiscal_year_end   or str(end),
+        preparer          = body.preparer,
+    )
+
+    jab = generate_jahresabschluss(
+        receipts=[r for r in receipts if r.receipt_date and r.receipt_date.year == year],
+        year=year,
+        stammkapital=Decimal(str(body.stammkapital)),
+        eingezahltes_kapital=Decimal(str(body.eingezahltes_kapital)),
+        vortrag_gewinnverlust=Decimal(str(body.vortrag)),
+        nettomethode=body.nettomethode,
+    )
+
+    try:
+        xml_bytes = build_xbrl(jab, cfg)
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    filename = f"ebilanz_{year}_{body.steuernummer.replace('/', '-')}.xbrl"
+    return StreamingResponse(
+        iter([xml_bytes]),
+        media_type="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ---------------------------------------------------------------------------

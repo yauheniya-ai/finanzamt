@@ -1,5 +1,30 @@
 # Changelog
 
+## Version 0.16.0 (2026-04-19)
+
+### New features / improvements
+
+- **Backend: `finamt.tax.ebilanz` — XBRL instance builder** — new module `pypi/src/finamt/tax/ebilanz.py` generates a valid HGB XBRL instance document for Kleinstkapitalgesellschaften (§ 267a HGB, MicroBilG schema). Uses the official HGB taxonomy v6 (2025-04-01). Key implementation details:
+  - `EBilanzConfig` dataclass holds company master data (Steuernummer, Firmenname, Rechtsform, fiscal year dates, preparer).
+  - `build_xbrl(jab, cfg) -> bytes` produces a UTF-8 encoded `.xbrl` file ready for ERiC transmission.
+  - `write_xbrl(jab, cfg, path)` convenience wrapper writes to disk.
+  - Correct XBRL sign convention: expense concepts (`materialServices`, `staff`, `deprAmort`, `otherCost`, `interestExpense`) are stored as **positive** values; the calculation linkbase carries `weight="-1"` for each, so validators subtract them automatically — negating them in the instance document would cause double-negation and fail calculation validation.
+  - `bs.eqLiab.equity.subscribed.unpaidCap` (nicht eingeforderte ausstehende Einlagen) is stored as a **positive** value for the same reason (`weight="-1"` in the balance-sheet calculation linkbase).
+  - Balancing identity verified: `subscribed − unpaidCap + netIncome = equity = totalAssets`.
+  - `lxml>=4.9.0` added as a core dependency in `pyproject.toml`.
+
+- **Backend: `POST /tax/ebilanz/xbrl` endpoint** — new FastAPI endpoint in `pypi/src/finamt/ui/api.py` accepts an `EBilanzRequest` JSON body (db path + `EBilanzConfig` fields), generates the Jahresabschluss from the database, builds the XBRL instance via `build_xbrl`, and streams the file as a `Content-Disposition: attachment` response with MIME type `application/xml`.
+
+- **Frontend: Jahresabschluss — Filing Obligations section** — `JahresabschlussPanel.tsx` gains a "Pflichten nach Jahresabschluss" block with two filing boxes:
+  - **E-Bilanz (§ 5b EStG)** — blue box; 2-step guide: (1) Download XBRL button (calls `POST /tax/ebilanz/xbrl`, triggers browser download of the `.xbrl` file; taxonomy version note: HGB v6 2025-04-01 accepted by ERiC for VZ 2022–2025) and (2) ERiC transmission instructions with links to `elster.de` certificate and ERiC developer download pages.
+  - **Bundesanzeiger (§ 325 + § 326 Abs. 2 HGB)** — amber box; 5-step guide covering the online Bundesanzeiger portal flow.
+  - `apiBase` and `dbPath` props added to `JahresabschlussPanel`; passed down through `Dashboard` (which receives them from `App.tsx` via `API_BASE` and `activeDb`).
+
+- **Frontend: i18n** — new keys under `jab_filing_section`, `jab_filing_note`, `jab_ebilanz_*`, and `jab_bundesanzeiger_*` added to `en.json` and `de.json`.
+
+
+
+
 ## Version 0.15.0 (2026-04-13)
 
 ### New features / improvements
